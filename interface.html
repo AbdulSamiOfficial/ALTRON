@@ -1,309 +1,154 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Star Sphere · ALTRON</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #000;
-            font-family: 'Arial', sans-serif;
-        }
-        canvas {
-            display: block;
-        }
-        .info {
-            position: absolute;
-            bottom: 16px;
-            right: 20px;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            pointer-events: none;
-            z-index: 100;
-            text-shadow: 0 0 10px rgba(180, 180, 255, 0.8);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sci-Fi HUD Animation (Black & White)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #000; /* Pure Black Background */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Main Container */
+    .hud {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      /* Blue glow hata diya gaya hai */
+    }
+
+    /* Outer Segmented Ring */
+    .outer {
+      position: absolute;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      /* Creates 8 segments with 5-degree gaps */
+      background: conic-gradient(
+        from -2.5deg,
+        #fff 0 40deg, transparent 40deg 45deg,
+        #fff 45deg 85deg, transparent 85deg 90deg,
+        #fff 90deg 130deg, transparent 130deg 135deg,
+        #fff 135deg 175deg, transparent 175deg 180deg,
+        #fff 180deg 220deg, transparent 220deg 225deg,
+        #fff 225deg 265deg, transparent 265deg 270deg,
+        #fff 270deg 310deg, transparent 310deg 315deg,
+        #fff 315deg 355deg, transparent 355deg 360deg
+      );
+      /* Hollow out the center to create a ring */
+      -webkit-mask: radial-gradient(transparent 89px, #000 90px);
+      mask: radial-gradient(transparent 89px, #000 90px);
+      animation: rotate-cw 20s linear infinite;
+    }
+
+    /* Tick Ring Container */
+    .tick-ring {
+      position: absolute;
+      width: 156px;
+      height: 156px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+    }
+
+    /* Small Tick Marks */
+    .ticks {
+      position: absolute;
+      width: 156px;
+      height: 156px;
+      border-radius: 50%;
+      /* Creates the small radial lines */
+      background: repeating-conic-gradient(
+        from 0deg,
+        #fff 0deg 2deg,
+        transparent 2deg 5deg
+      );
+      /* Mask to only show ticks between the inner and outer borders */
+      -webkit-mask: radial-gradient(transparent 57px, #000 58px);
+      mask: radial-gradient(transparent 57px, #000 58px);
+      animation: rotate-ccw 15s linear infinite;
+    }
+
+    /* Outer Border for Ticks */
+    .tick-border-outer {
+      position: absolute;
+      width: 156px;
+      height: 156px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+    }
+
+    /* Inner Border for Ticks */
+    .tick-border-inner {
+      position: absolute;
+      width: 116px;
+      height: 116px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+    }
+
+    /* Center Circle */
+    .center {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      background-color: #fff;
+      border-radius: 50%;
+      /* Blue shadow hata kar simple pulse animation rakhi hai */
+      animation: pulse 3s ease-in-out infinite;
+    }
+
+    /* Animations */
+    @keyframes rotate-cw {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes rotate-ccw {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(-360deg); }
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="info">STAR SPHERE · ALTRON</div>
-
-    <!-- Import Three.js and OrbitControls -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.126.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.126.0/examples/jsm/"
-            }
-        }
-    </script>
-
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-        // --- Initialize Scene, Camera, Renderer ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
-
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 0, 12);
-        camera.lookAt(0, 0, 0);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.outputEncoding = THREE.sRGBEncoding;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 2.2;
-        document.body.appendChild(renderer.domElement);
-
-        // --- Controls ---
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.8;
-        controls.enableZoom = true;
-        controls.enablePan = false;
-        controls.rotateSpeed = 0.5;
-        controls.target.set(0, 0, 0);
-        controls.update();
-
-        // --- Lighting (brighter) ---
-        const ambientLight = new THREE.AmbientLight(0xa0a0d0, 1.6);
-        scene.add(ambientLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(1, 1, 1);
-        scene.add(dirLight);
-
-        // --- Shared soft circular texture for star dots ---
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-        gradient.addColorStop(0, 'rgba(255,255,255,1)');
-        gradient.addColorStop(0.5, 'rgba(255,255,255,0.95)');
-        gradient.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 32, 32);
-        const texture = new THREE.CanvasTexture(canvas);
-
-        // ============================================================
-        // MAIN SPHERICAL STAR LAYER
-        // ============================================================
-        const sphereStarCount = 6000;
-        const sphereGeo = new THREE.BufferGeometry();
-        const spherePositions = new Float32Array(sphereStarCount * 3);
-        const sphereSizes = new Float32Array(sphereStarCount);
-        const sphereColors = new Float32Array(sphereStarCount * 3);
-
-        const sphereRadius = 6.0;
-
-        for (let i = 0; i < sphereStarCount; i++) {
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos((Math.random() * 2) - 1);
-            const r = sphereRadius + (Math.random() - 0.5) * 0.4;
-
-            const x = Math.sin(phi) * Math.cos(theta) * r;
-            const y = Math.sin(phi) * Math.sin(theta) * r;
-            const z = Math.cos(phi) * r;
-
-            spherePositions[i * 3] = x;
-            spherePositions[i * 3 + 1] = y;
-            spherePositions[i * 3 + 2] = z;
-
-            sphereSizes[i] = Math.random() * 0.08 + 0.02;
-
-            const brightness = 1.3 + Math.random() * 0.7;
-            const tint = Math.random() * 0.15;
-            sphereColors[i * 3] = brightness;
-            sphereColors[i * 3 + 1] = brightness * (0.95 + tint);
-            sphereColors[i * 3 + 2] = brightness * (0.9 + tint);
-        }
-
-        sphereGeo.setAttribute('position', new THREE.BufferAttribute(spherePositions, 3));
-        sphereGeo.setAttribute('size', new THREE.BufferAttribute(sphereSizes, 1));
-        sphereGeo.setAttribute('color', new THREE.BufferAttribute(sphereColors, 3));
-
-        const sphereMat = new THREE.PointsMaterial({
-            size: 0.08,
-            map: texture,
-            transparent: true,
-            opacity: 1.0,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-            vertexColors: true,
-            sizeAttenuation: true
-        });
-
-        const sphereStars = new THREE.Points(sphereGeo, sphereMat);
-        scene.add(sphereStars);
-
-        // ============================================================
-        // SPARKLE LAYER
-        // ============================================================
-        const sparkleCount = 800;
-        const sparkleGeo = new THREE.BufferGeometry();
-        const sparklePositions = new Float32Array(sparkleCount * 3);
-        const sparkleColors = new Float32Array(sparkleCount * 3);
-
-        for (let i = 0; i < sparkleCount; i++) {
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos((Math.random() * 2) - 1);
-            const r = sphereRadius + (Math.random() - 0.5) * 0.6;
-
-            const x = Math.sin(phi) * Math.cos(theta) * r;
-            const y = Math.sin(phi) * Math.sin(theta) * r;
-            const z = Math.cos(phi) * r;
-
-            sparklePositions[i * 3] = x;
-            sparklePositions[i * 3 + 1] = y;
-            sparklePositions[i * 3 + 2] = z;
-
-            sparkleColors[i * 3] = 1.5;
-            sparkleColors[i * 3 + 1] = 1.5;
-            sparkleColors[i * 3 + 2] = 1.5 + Math.random() * 0.5;
-        }
-
-        sparkleGeo.setAttribute('position', new THREE.BufferAttribute(sparklePositions, 3));
-        sparkleGeo.setAttribute('color', new THREE.BufferAttribute(sparkleColors, 3));
-
-        const sparkleMat = new THREE.PointsMaterial({
-            size: 0.12,
-            map: texture,
-            transparent: true,
-            opacity: 1.0,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-            vertexColors: true,
-            sizeAttenuation: true
-        });
-
-        const sparkles = new THREE.Points(sparkleGeo, sparkleMat);
-        scene.add(sparkles);
-
-        // ============================================================
-        // ALTRON text at center — glowing, bright, 3D
-        // ============================================================
-        // Create a high-res canvas for the text
-        const textCanvas = document.createElement('canvas');
-        const ctxText = textCanvas.getContext('2d');
-        const canvasSize = 1024;
-        textCanvas.width = canvasSize;
-        textCanvas.height = canvasSize / 2; // wide enough for the word
-
-        // Draw glowing ALTRON text
-        ctxText.clearRect(0, 0, textCanvas.width, textCanvas.height);
-        
-        // Background transparent
-        // Text styling
-        const text = "ALTRON";
-        const fontSize = 220;
-        ctxText.font = `bold ${fontSize}px 'Arial', 'Helvetica', sans-serif`;
-        ctxText.textAlign = 'center';
-        ctxText.textBaseline = 'middle';
-        
-        // Outer glow effect
-        ctxText.shadowColor = '#aaccff';
-        ctxText.shadowBlur = 60;
-        ctxText.shadowOffsetX = 0;
-        ctxText.shadowOffsetY = 0;
-        
-        // Multiple layers for intense glow
-        // 1. wide soft glow
-        ctxText.fillStyle = 'rgba(180, 200, 255, 0.9)';
-        ctxText.fillText(text, textCanvas.width/2, textCanvas.height/2);
-        
-        // 2. medium glow
-        ctxText.shadowBlur = 40;
-        ctxText.fillStyle = 'rgba(220, 235, 255, 1.0)';
-        ctxText.fillText(text, textCanvas.width/2, textCanvas.height/2);
-        
-        // 3. sharp core (white)
-        ctxText.shadowBlur = 20;
-        ctxText.fillStyle = '#ffffff';
-        ctxText.fillText(text, textCanvas.width/2, textCanvas.height/2);
-        
-        // 4. final bright white without shadow (ensures crispness)
-        ctxText.shadowBlur = 0;
-        ctxText.fillStyle = '#ffffff';
-        ctxText.fillText(text, textCanvas.width/2, textCanvas.height/2);
-
-        // Create texture from canvas
-        const altronTexture = new THREE.CanvasTexture(textCanvas);
-        altronTexture.encoding = THREE.sRGBEncoding;
-        altronTexture.minFilter = THREE.LinearFilter;
-        altronTexture.magFilter = THREE.LinearFilter;
-
-        // Create a plane to hold the text — positioned at the center
-        // The canvas aspect ratio is 1024x512 = 2:1, so plane width 4, height 2 for good visibility
-        const textMaterial = new THREE.MeshBasicMaterial({
-            map: altronTexture,
-            transparent: true,
-            blending: THREE.AdditiveBlending, // makes it glow and integrate with stars
-            depthWrite: false,
-            depthTest: true,
-            side: THREE.DoubleSide, // visible from both sides if rotated
-            opacity: 1.0
-        });
-
-        const textPlane = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 2.25), textMaterial);
-        textPlane.position.set(0, 0, 0); // exactly at center
-        // Slight rotation to face camera? We'll keep it facing forward but also billboard towards camera?
-        // For a central glowing sign, facing camera looks better. But we have orbit controls,
-        // so we want it to be readable from all angles? Actually a floating text that always faces camera is nicer.
-        // However, the sphere is rotating; we can make the text always face the camera by using a Sprite or
-        // by updating its rotation in the animate loop. Let's do that: billboard effect.
-        // We'll create a separate pivot or just rotate it in the loop.
-        // But since we want it at center and visible from all sides, let's make it face camera always.
-        // We'll store a reference and in animate: textPlane.quaternion.copy(camera.quaternion);
-        // That's the classic billboard technique.
-        
-        scene.add(textPlane);
-
-        // Add a subtle point light near center to enhance glow? Not necessary.
-
-        // ============================================================
-        // Animation Loop
-        // ============================================================
-        function animate() {
-            const elapsedTime = performance.now() * 0.001;
-
-            // Rotate star layers
-            sphereStars.rotation.y = elapsedTime * 0.05;
-            sphereStars.rotation.x = Math.sin(elapsedTime * 0.1) * 0.02;
-
-            sparkles.rotation.y = elapsedTime * 0.04;
-            sparkles.rotation.x = Math.sin(elapsedTime * 0.12) * 0.02;
-
-            // Billboard the text so it always faces camera
-            textPlane.quaternion.copy(camera.quaternion);
-
-            // Optional: subtle pulse of the text glow (scale or opacity)
-            // Slight scale pulse to make it feel alive
-            const pulse = 1 + Math.sin(elapsedTime * 3) * 0.02;
-            textPlane.scale.set(pulse, pulse, 1);
-
-            controls.update();
-            renderer.render(scene, camera);
-            requestAnimationFrame(animate);
-        }
-
-        animate();
-
-        // --- Handle window resize ---
-        window.addEventListener('resize', onWindowResize, false);
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-    </script>
+  <div class="hud">
+    <!-- Outer segmented ring -->
+    <div class="outer"></div>
+    
+    <!-- Middle tick ring -->
+    <div class="tick-ring">
+      <div class="ticks"></div>
+      <div class="tick-border-outer"></div>
+      <div class="tick-border-inner"></div>
+    </div>
+    
+    <!-- Center core -->
+    <div class="center"></div>
+  </div>
 </body>
 </html>
