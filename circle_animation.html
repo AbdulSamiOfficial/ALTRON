@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>₿ Bitcoin — Digital Current Field</title>
+<title>Digital Current Field</title>
 <style>
   :root{
     --btc:      #f7931a;
     --btc-2:    #ffc46b;
     --btc-3:    #ffe6b8;
-    --line:     rgba(247,147,26,.55);
   }
 
   *{ box-sizing: border-box; }
@@ -63,7 +62,7 @@
     border-radius: 50%;
   }
 
-  /* ── central glow behind the coin ───────────────────────────── */
+  /* ── central glow ───────────────────────────────────────────── */
   .glow{
     width: 62%;
     height: 62%;
@@ -163,7 +162,7 @@
   .o3 .electron{ width: 7px;   height: 7px;   margin: -3.5px 0 0 -3.5px; }
   .o4 .electron{ width: 6px;   height: 6px;   margin: -3px   0 0 -3px; }
 
-  /* ── lightning spokes radiating from the coin ───────────────── */
+  /* ── lightning spokes radiating from the centre ─────────────── */
   .arcs{
     position: absolute;
     inset: 0;
@@ -185,69 +184,6 @@
     animation: arcGlow 3.2s ease-in-out infinite;
   }
 
-  /* ── the coin ───────────────────────────────────────────────── */
-  .coin{
-    position: relative;
-    z-index: 3;
-    width: 26%;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: radial-gradient(circle at 32% 24%,
-      #fff8dc 0%,
-      #ffd071 16%,
-      #f7931a 50%,
-      #c96a08 78%,
-      #8a4203 100%);
-    box-shadow:
-      0 0 0 5px rgba(255,190,100,.10),
-      0 0 26px  rgba(247,147,26,.85),
-      0 0 70px  rgba(247,147,26,.50),
-      0 0 150px rgba(247,147,26,.28),
-      inset 0 -12px 26px rgba(110,45,0,.60),
-      inset 0  12px 24px rgba(255,245,215,.45);
-    animation: float 5.5s ease-in-out infinite;
-  }
-
-  /* engraved inner rim */
-  .coin::before{
-    content: "";
-    position: absolute;
-    inset: 8%;
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,.35);
-    box-shadow:
-      inset 0 0 22px rgba(255,225,160,.55),
-      0 0 14px rgba(255,205,110,.45);
-  }
-
-  /* glossy light sweep */
-  .coin::after{
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: linear-gradient(115deg,
-      transparent 32%,
-      rgba(255,255,255,.55) 46%,
-      rgba(255,255,255,.05) 56%,
-      transparent 70%);
-    background-size: 250% 250%;
-    mix-blend-mode: screen;
-    pointer-events: none;
-    animation: shine 4.5s ease-in-out infinite;
-  }
-
-  .coin svg{
-    width: 54%;
-    height: 54%;
-    position: relative;
-    z-index: 1;
-    color: #fff;
-    filter: drop-shadow(0 4px 6px rgba(120,50,0,.45));
-  }
-
   /* ── keyframes ──────────────────────────────────────────────── */
   @keyframes spin{
     to{ transform: rotate(360deg); }
@@ -267,16 +203,6 @@
   @keyframes arcGlow{
     0%, 100%{ opacity: 0; }
     45%     { opacity: 1; }
-  }
-
-  @keyframes float{
-    0%, 100%{ transform: translateY(-8px) scale(1); }
-    50%     { transform: translateY( 8px) scale(1.02); }
-  }
-
-  @keyframes shine{
-    0%       { background-position: 130% 0; }
-    55%, 100%{ background-position: -30% 0; }
   }
 </style>
 </head>
@@ -309,17 +235,6 @@
         <span class="arc" style="transform:rotate(240deg);  animation-delay:1.6s"></span>
         <span class="arc" style="transform:rotate(300deg);  animation-delay:2s"></span>
       </div>
-    </div>
-
-    <!-- ══ the bitcoin ══ -->
-    <div class="coin">
-      <svg viewBox="0 0 100 100" fill="none" stroke="currentColor"
-           stroke-width="10" stroke-linecap="round" stroke-linejoin="round"
-           aria-hidden="true">
-        <path d="M38 12 V88"/>
-        <path d="M38 20 H58 a14 14 0 0 1 0 28 H38"/>
-        <path d="M38 48 H62 a16 16 0 0 1 0 32 H38"/>
-      </svg>
     </div>
 
   </div>
