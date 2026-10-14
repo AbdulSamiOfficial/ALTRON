@@ -96,30 +96,6 @@
     animation: spin 22s linear infinite;
   }
 
-  /* ── electric arc (conic gradient masked into a ring) ───────── */
-  .ring-arc{
-    width: 66%;
-    height: 66%;
-    background: conic-gradient(from 0deg,
-      transparent 0 58%,
-      rgba(247,147,26,.85) 70%,
-      var(--btc-3) 75%,
-      rgba(247,147,26,.85) 80%,
-      transparent 92% 100%);
-    -webkit-mask: radial-gradient(circle closest-side, transparent 0 95.5%, #000 96.5% 100%);
-            mask: radial-gradient(circle closest-side, transparent 0 95.5%, #000 96.5% 100%);
-    filter: drop-shadow(0 0 8px rgba(247,147,26,.85));
-    animation: spin 9s linear infinite reverse;
-  }
-
-  /* ── dotted outer ring ──────────────────────────────────────── */
-  .ring-dot{
-    width: 88%;
-    height: 88%;
-    border: 2px dotted rgba(247,147,26,.30);
-    animation: spin 45s linear infinite;
-  }
-
   /* ── expanding energy pulses ────────────────────────────────── */
   .pulse{
     width: 38%;
@@ -132,57 +108,6 @@
   }
   .pulse.p2{ animation-delay: 1.2s; }
   .pulse.p3{ animation-delay: 2.4s; }
-
-  /* ── orbiting electrons ─────────────────────────────────────── */
-  .orbit{
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    border-radius: 50%;
-  }
-  .o1{ width: 33%; height: 33%; animation: spin  6s linear infinite; }
-  .o2{ width: 52%; height: 52%; animation: spin 11s linear infinite reverse; }
-  .o3{ width: 72%; height: 72%; animation: spin 16s linear infinite; }
-  .o4{ width: 92%; height: 92%; animation: spin 24s linear infinite reverse; }
-
-  .electron{
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: 10px;
-    height: 10px;
-    margin: -5px 0 0 -5px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #fff, var(--btc-2) 45%, var(--btc) 100%);
-    box-shadow:
-      0 0 10px rgba(255,200,110,.95),
-      0 0 24px rgba(247,147,26,.80);
-  }
-  .o2 .electron{ width: 8px;   height: 8px;   margin: -4px   0 0 -4px; }
-  .o3 .electron{ width: 7px;   height: 7px;   margin: -3.5px 0 0 -3.5px; }
-  .o4 .electron{ width: 6px;   height: 6px;   margin: -3px   0 0 -3px; }
-
-  /* ── lightning spokes radiating from the centre ─────────────── */
-  .arcs{
-    position: absolute;
-    inset: 0;
-  }
-  .arc{
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 2px;
-    height: 44%;
-    margin-left: -1px;
-    transform-origin: 50% 0;      /* pivot at the stage centre */
-    background: linear-gradient(to bottom,
-      rgba(255,225,170,.95) 0%,
-      rgba(247,147,26,.60) 16%,
-      rgba(247,147,26,.15) 55%,
-      transparent 100%);
-    opacity: 0;
-    animation: arcGlow 3.2s ease-in-out infinite;
-  }
 
   /* ── keyframes ──────────────────────────────────────────────── */
   @keyframes spin{
@@ -199,11 +124,6 @@
     0%, 100%{ opacity: .75; transform: scale(1); }
     50%     { opacity: 1;   transform: scale(1.12); }
   }
-
-  @keyframes arcGlow{
-    0%, 100%{ opacity: 0; }
-    45%     { opacity: 1; }
-  }
 </style>
 </head>
 <body>
@@ -214,27 +134,11 @@
     <div class="field">
       <div class="layer glow"></div>
       <div class="layer spokes"></div>
-      <div class="layer ring-dot"></div>
-      <div class="layer ring-arc"></div>
       <div class="layer ring-dash"></div>
 
       <div class="layer pulse p1"></div>
       <div class="layer pulse p2"></div>
       <div class="layer pulse p3"></div>
-
-      <div class="orbit o1"><span class="electron"></span></div>
-      <div class="orbit o2"><span class="electron"></span></div>
-      <div class="orbit o3"><span class="electron"></span></div>
-      <div class="orbit o4"><span class="electron"></span></div>
-
-      <div class="arcs">
-        <span class="arc" style="transform:rotate(0deg)"></span>
-        <span class="arc" style="transform:rotate(60deg);   animation-delay:.4s"></span>
-        <span class="arc" style="transform:rotate(120deg);  animation-delay:.8s"></span>
-        <span class="arc" style="transform:rotate(180deg);  animation-delay:1.2s"></span>
-        <span class="arc" style="transform:rotate(240deg);  animation-delay:1.6s"></span>
-        <span class="arc" style="transform:rotate(300deg);  animation-delay:2s"></span>
-      </div>
     </div>
 
   </div>
