@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>₿ Bitcoin — Digital Current Field</title>
+<style>
+  :root{
+    --btc:      #f7931a;
+    --btc-2:    #ffc46b;
+    --btc-3:    #ffe6b8;
+    --line:     rgba(247,147,26,.55);
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{ height: 100%; }
+
+  body{
+    margin: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 45%, #101a26 0%, #080b12 45%, #030408 100%);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  /* ── faint digital grid in the background ───────────────────── */
+  body::before{
+    content: "";
+    position: fixed;
+    inset: -2px;
+    background-image:
+      linear-gradient(rgba(120,190,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120,190,255,.05) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, transparent 70%);
+            mask-image: radial-gradient(circle at 50% 50%, #000 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ── stage ──────────────────────────────────────────────────── */
+  .stage{
+    position: relative;
+    width: min(92vmin, 640px);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+  }
+
+  .field{
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* helper: absolutely centered, self-rounding layer */
+  .layer{
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    border-radius: 50%;
+  }
+
+  /* ── central glow behind the coin ───────────────────────────── */
+  .glow{
+    width: 62%;
+    height: 62%;
+    background: radial-gradient(circle,
+      rgba(247,147,26,.50) 0%,
+      rgba(247,147,26,.18) 40%,
+      transparent 68%);
+    filter: blur(14px);
+    animation: breathe 4.5s ease-in-out infinite;
+  }
+
+  /* ── radial "current" spokes ────────────────────────────────── */
+  .spokes{
+    width: 100%;
+    height: 100%;
+    background: repeating-conic-gradient(from 0deg,
+      rgba(247,147,26,.35) 0deg .5deg,
+      transparent .5deg 15deg);
+    -webkit-mask: radial-gradient(circle closest-side, transparent 0 40%, #000 62%, transparent 94%);
+            mask: radial-gradient(circle closest-side, transparent 0 40%, #000 62%, transparent 94%);
+    opacity: .6;
+    animation: spin 70s linear infinite;
+  }
+
+  /* ── dashed inner ring ──────────────────────────────────────── */
+  .ring-dash{
+    width: 47%;
+    height: 47%;
+    border: 1.5px dashed rgba(247,147,26,.6);
+    box-shadow: 0 0 26px rgba(247,147,26,.20);
+    animation: spin 22s linear infinite;
+  }
+
+  /* ── electric arc (conic gradient masked into a ring) ───────── */
+  .ring-arc{
+    width: 66%;
+    height: 66%;
+    background: conic-gradient(from 0deg,
+      transparent 0 58%,
+      rgba(247,147,26,.85) 70%,
+      var(--btc-3) 75%,
+      rgba(247,147,26,.85) 80%,
+      transparent 92% 100%);
+    -webkit-mask: radial-gradient(circle closest-side, transparent 0 95.5%, #000 96.5% 100%);
+            mask: radial-gradient(circle closest-side, transparent 0 95.5%, #000 96.5% 100%);
+    filter: drop-shadow(0 0 8px rgba(247,147,26,.85));
+    animation: spin 9s linear infinite reverse;
+  }
+
+  /* ── dotted outer ring ──────────────────────────────────────── */
+  .ring-dot{
+    width: 88%;
+    height: 88%;
+    border: 2px dotted rgba(247,147,26,.30);
+    animation: spin 45s linear infinite;
+  }
+
+  /* ── expanding energy pulses ────────────────────────────────── */
+  .pulse{
+    width: 38%;
+    height: 38%;
+    border: 1px solid rgba(247,147,26,.75);
+    box-shadow:
+      0 0 20px rgba(247,147,26,.35),
+      inset 0 0 20px rgba(247,147,26,.20);
+    animation: pulse 3.6s cubic-bezier(.22,.7,.35,1) infinite;
+  }
+  .pulse.p2{ animation-delay: 1.2s; }
+  .pulse.p3{ animation-delay: 2.4s; }
+
+  /* ── orbiting electrons ─────────────────────────────────────── */
+  .orbit{
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    border-radius: 50%;
+  }
+  .o1{ width: 33%; height: 33%; animation: spin  6s linear infinite; }
+  .o2{ width: 52%; height: 52%; animation: spin 11s linear infinite reverse; }
+  .o3{ width: 72%; height: 72%; animation: spin 16s linear infinite; }
+  .o4{ width: 92%; height: 92%; animation: spin 24s linear infinite reverse; }
+
+  .electron{
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, var(--btc-2) 45%, var(--btc) 100%);
+    box-shadow:
+      0 0 10px rgba(255,200,110,.95),
+      0 0 24px rgba(247,147,26,.80);
+  }
+  .o2 .electron{ width: 8px;   height: 8px;   margin: -4px   0 0 -4px; }
+  .o3 .electron{ width: 7px;   height: 7px;   margin: -3.5px 0 0 -3.5px; }
+  .o4 .electron{ width: 6px;   height: 6px;   margin: -3px   0 0 -3px; }
+
+  /* ── lightning spokes radiating from the coin ───────────────── */
+  .arcs{
+    position: absolute;
+    inset: 0;
+  }
+  .arc{
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2px;
+    height: 44%;
+    margin-left: -1px;
+    transform-origin: 50% 0;      /* pivot at the stage centre */
+    background: linear-gradient(to bottom,
+      rgba(255,225,170,.95) 0%,
+      rgba(247,147,26,.60) 16%,
+      rgba(247,147,26,.15) 55%,
+      transparent 100%);
+    opacity: 0;
+    animation: arcGlow 3.2s ease-in-out infinite;
+  }
+
+  /* ── the coin ───────────────────────────────────────────────── */
+  .coin{
+    position: relative;
+    z-index: 3;
+    width: 26%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 32% 24%,
+      #fff8dc 0%,
+      #ffd071 16%,
+      #f7931a 50%,
+      #c96a08 78%,
+      #8a4203 100%);
+    box-shadow:
+      0 0 0 5px rgba(255,190,100,.10),
+      0 0 26px  rgba(247,147,26,.85),
+      0 0 70px  rgba(247,147,26,.50),
+      0 0 150px rgba(247,147,26,.28),
+      inset 0 -12px 26px rgba(110,45,0,.60),
+      inset 0  12px 24px rgba(255,245,215,.45);
+    animation: float 5.5s ease-in-out infinite;
+  }
+
+  /* engraved inner rim */
+  .coin::before{
+    content: "";
+    position: absolute;
+    inset: 8%;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.35);
+    box-shadow:
+      inset 0 0 22px rgba(255,225,160,.55),
+      0 0 14px rgba(255,205,110,.45);
+  }
+
+  /* glossy light sweep */
+  .coin::after{
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: linear-gradient(115deg,
+      transparent 32%,
+      rgba(255,255,255,.55) 46%,
+      rgba(255,255,255,.05) 56%,
+      transparent 70%);
+    background-size: 250% 250%;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    animation: shine 4.5s ease-in-out infinite;
+  }
+
+  .coin svg{
+    width: 54%;
+    height: 54%;
+    position: relative;
+    z-index: 1;
+    color: #fff;
+    filter: drop-shadow(0 4px 6px rgba(120,50,0,.45));
+  }
+
+  /* ── keyframes ──────────────────────────────────────────────── */
+  @keyframes spin{
+    to{ transform: rotate(360deg); }
+  }
+
+  @keyframes pulse{
+    0%   { transform: scale(.55); opacity: 0; }
+    12%  { opacity: .9; }
+    100% { transform: scale(2.3); opacity: 0; }
+  }
+
+  @keyframes breathe{
+    0%, 100%{ opacity: .75; transform: scale(1); }
+    50%     { opacity: 1;   transform: scale(1.12); }
+  }
+
+  @keyframes arcGlow{
+    0%, 100%{ opacity: 0; }
+    45%     { opacity: 1; }
+  }
+
+  @keyframes float{
+    0%, 100%{ transform: translateY(-8px) scale(1); }
+    50%     { transform: translateY( 8px) scale(1.02); }
+  }
+
+  @keyframes shine{
+    0%       { background-position: 130% 0; }
+    55%, 100%{ background-position: -30% 0; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="stage">
+
+    <!-- ══ digital current field ══ -->
+    <div class="field">
+      <div class="layer glow"></div>
+      <div class="layer spokes"></div>
+      <div class="layer ring-dot"></div>
+      <div class="layer ring-arc"></div>
+      <div class="layer ring-dash"></div>
+
+      <div class="layer pulse p1"></div>
+      <div class="layer pulse p2"></div>
+      <div class="layer pulse p3"></div>
+
+      <div class="orbit o1"><span class="electron"></span></div>
+      <div class="orbit o2"><span class="electron"></span></div>
+      <div class="orbit o3"><span class="electron"></span></div>
+      <div class="orbit o4"><span class="electron"></span></div>
+
+      <div class="arcs">
+        <span class="arc" style="transform:rotate(0deg)"></span>
+        <span class="arc" style="transform:rotate(60deg);   animation-delay:.4s"></span>
+        <span class="arc" style="transform:rotate(120deg);  animation-delay:.8s"></span>
+        <span class="arc" style="transform:rotate(180deg);  animation-delay:1.2s"></span>
+        <span class="arc" style="transform:rotate(240deg);  animation-delay:1.6s"></span>
+        <span class="arc" style="transform:rotate(300deg);  animation-delay:2s"></span>
+      </div>
+    </div>
+
+    <!-- ══ the bitcoin ══ -->
+    <div class="coin">
+      <svg viewBox="0 0 100 100" fill="none" stroke="currentColor"
+           stroke-width="10" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true">
+        <path d="M38 12 V88"/>
+        <path d="M38 20 H58 a14 14 0 0 1 0 28 H38"/>
+        <path d="M38 48 H62 a16 16 0 0 1 0 32 H38"/>
+      </svg>
+    </div>
+
+  </div>
+
+</body>
+</html>
