@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Travel Game 🚀</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: black; font-family: Arial, sans-serif; color: white; }
+        #hud {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0,20,40,0.85); padding: 12px 20px;
+            border-radius: 10px; border: 2px solid #00aaff;
+            font-size: 16px; pointer-events: none; user-select: none;
+            min-width: 180px; box-shadow: 0 0 20px #00aaff44;
+        }
+        #hud div { margin: 4px 0; }
+        .label { color: #88ccff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .value { color: #ffffff; font-size: 22px; font-weight: bold; }
+        #controls {
+            position: absolute; bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,20,40,0.85); padding: 10px 24px;
+            border-radius: 30px; border: 1px solid #00aaff;
+            font-size: 14px; text-align: center; color: #aaddff;
+            pointer-events: none; white-space: nowrap;
+        }
+        #gameOver {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10,0,30,0.96);
+            padding: 40px 60px; border-radius: 20px;
+            border: 2px solid #ff4466; text-align: center;
+            display: none; box-shadow: 0 0 60px #ff446688;
+            z-index: 20;
+        }
+        #gameOver h1 { color: #ff4466; margin: 0 0 10px; font-size: 42px; text-shadow: 0 0 20px #ff4466; }
+        #gameOver p { font-size: 20px; margin: 10px 0; }
+        #gameOver button {
+            margin-top: 20px; padding: 14px 40px;
+            background: linear-gradient(45deg, #0066ff, #00ccff);
+            color: white; border: none; border-radius: 40px;
+            font-size: 18px; font-weight: bold; cursor: pointer;
+            transition: 0.2s; box-shadow: 0 0 20px #00aaff;
+        }
+        #gameOver button:hover { transform: scale(1.08); }
+        #startScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #050520, #000010);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 30; text-align: center;
+        }
+        #startScreen h1 {
+            font-size: 60px; color: #00aaff;
+            text-shadow: 0 0 30px #00aaff, 0 0 60px #0066ff;
+            margin-bottom: 10px; letter-spacing: 4px;
+        }
+        #startScreen p { font-size: 18px; color: #88ccff; margin: 8px 0; }
+        #startScreen button {
+            margin-top: 40px; padding: 16px 60px;
+            background: linear-gradient(45deg, #0066ff, #00ccff);
+            color: white; border: none; border-radius: 40px;
+            font-size: 24px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 0 30px #00aaff; transition: 0.3s;
+            letter-spacing: 2px;
+        }
+        #startScreen button:hover { transform: scale(1.1); box-shadow: 0 0 60px #00ccff; }
+        .key-hint {
+            display: inline-block; padding: 5px 12px; margin: 0 4px;
+            background: #003366; border-radius: 5px; border: 1px solid #00aaff;
+            font-family: monospace; color: #aaddff; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <h1>🚀 SPACE TRAVEL</h1>
+        <p>Asteroids se bacho aur zyada se zyada door jao!</p>
+        <p style="margin-top: 30px; font-size: 16px; color: #00aaff;">CONTROLS</p>
+        <p><span class="key-hint">←</span> <span class="key-hint">→</span> ya <span class="key-hint">A</span> <span class="key-hint">D</span> — Move Left/Right</p>
+        <p><span class="key-hint">↑</span> <span class="key-hint">↓</span> ya <span class="key-hint">W</span> <span class="key-hint">S</span> — Move Up/Down</p>
+        <p><span class="key-hint">SPACE</span> — Boost (Fire Badhao!)</p>
+        <button id="startBtn">START MISSION</button>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div><span class="label">Score</span><br><span class="value" id="score">0</span></div>
+        <div style="margin-top:10px;"><span class="label">Speed</span><br><span class="value" id="speed">1.0x</span></div>
+        <div style="margin-top:10px;"><span class="label">Shield</span><br><span class="value" id="shield" style="color:#44ff88;">🟢 100%</span></div>
+    </div>
+
+    <!-- Controls Hint -->
+    <div id="controls">← → ↑ ↓ Move &nbsp;|&nbsp; SPACE Boost &nbsp;|&nbsp; Avoid Asteroids!</div>
+
+    <!-- Game Over -->
+    <div id="gameOver">
+        <h1>💥 CRASHED!</h1>
+        <p>Mission Failed</p>
+        <p style="color:#ffcc00;">Final Score: <span id="finalScore">0</span></p>
+        <button id="restartBtn">TRY AGAIN</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // =====================
+        // SCENE SETUP
+        // =====================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020210);
+        scene.fog = new THREE.FogExp2(0x020210, 0.012);
+
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 4, 12);
+        camera.lookAt(0, 0, -5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // =====================
+        // LIGHTS
+        // =====================
+        scene.add(new THREE.AmbientLight(0x404060, 0.8));
+        
+        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        sun.position.set(5, 10, 5);
+        scene.add(sun);
+
+        const fill = new THREE.DirectionalLight(0x4466cc, 0.6);
+        fill.position.set(-10, 0, 5);
+        scene.add(fill);
+
+        const rim = new THREE.DirectionalLight(0xffaa66, 0.4);
+        rim.position.set(-5, 5, -10);
+        scene.add(rim);
+
+        // =====================
+        // STARFIELD
+        // =====================
+        const starsGeo = new THREE.BufferGeometry();
+        const starCount = 4000;
+        const starPos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount * 3; i += 3) {
+            starPos[i] = (Math.random() - 0.5) * 800;
+            starPos[i+1] = (Math.random() - 0.5) * 400;
+            starPos[i+2] = -Math.random() * 800;
+        }
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.9 });
+        const stars = new THREE.Points(starsGeo, starsMat);
+        scene.add(stars);
+
+        // =====================
+        // SPACECRAFT (ORIGINAL SHAPE - SAME AS BEFORE)
+        // =====================
+        const spacecraft = new THREE.Group();
+
+        const hullMaterial = new THREE.MeshStandardMaterial({
+            color: 0xb0c0d0, roughness: 0.4, metalness: 0.8,
+            emissive: new THREE.Color(0x111122)
+        });
+        const darkMetalMaterial = new THREE.MeshStandardMaterial({
+            color: 0x556677, roughness: 0.6, metalness: 0.9
+        });
+        const accentMaterial = new THREE.MeshStandardMaterial({
+            color: 0xcc3333, roughness: 0.3, metalness: 0.7,
+            emissive: new THREE.Color(0x330000)
+        });
+        const windowMaterial = new THREE.MeshStandardMaterial({
+            color: 0x88ccff, emissive: new THREE.Color(0x004466),
+            roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.9
+        });
+        const engineGlowMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2266ff, emissive: new THREE.Color(0x0044ff),
+            roughness: 0.2, metalness: 0.1
+        });
+
+        // --- Main Fuselage ---
+        const bodyLength = 4.0;
+        const bodyRadius = 1.0;
+        
+        const bodyCylinder = new THREE.Mesh(
+            new THREE.CylinderGeometry(bodyRadius, bodyRadius, bodyLength, 16),
+            hullMaterial
+        );
+        bodyCylinder.rotation.x = Math.PI / 2;
+        spacecraft.add(bodyCylinder);
+
+        const noseSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(bodyRadius, 16, 16), hullMaterial
+        );
+        noseSphere.position.z = bodyLength / 2;
+        spacecraft.add(noseSphere);
+
+        const rearSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(bodyRadius, 16, 16), hullMaterial
+        );
+        rearSphere.position.z = -bodyLength / 2;
+        spacecraft.add(rearSphere);
+
+        // --- Cockpit ---
+        const cockpit = new THREE.Mesh(
+            new THREE.SphereGeometry(0.55, 16, 8, 0, Math.PI * 2, 0, Math.PI/2),
+            windowMaterial
+        );
+        cockpit.position.set(0, 0.65, 1.1);
+        cockpit.rotation.x = -0.3;
+        cockpit.scale.set(1.2, 0.6, 1.0);
+        spacecraft.add(cockpit);
+
+        const cockpitRing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.65, 0.06, 8, 24), darkMetalMaterial
+        );
+        cockpitRing.position.set(0, 0.65, 1.05);
+        cockpitRing.rotation.x = Math.PI / 2;
+        cockpitRing.rotation.z = 0.3;
+        cockpitRing.scale.set(1.2, 1.2, 0.8);
+        spacecraft.add(cockpitRing);
+
+        // --- Wings ---
+        const leftWing = new THREE.Mesh(
+            new THREE.BoxGeometry(1.8, 0.15, 1.2), hullMaterial
+        );
+        leftWing.position.set(-1.5, 0.1, -0.2);
+        leftWing.rotation.z = 0.1;
+        leftWing.rotation.y = 0.1;
+        spacecraft.add(leftWing);
+
+        const rightWing = new THREE.Mesh(
+            new THREE.BoxGeometry(1.8, 0.15, 1.2), hullMaterial
+        );
+        rightWing.position.set(1.5, 0.1, -0.2);
+        rightWing.rotation.z = -0.1;
+        rightWing.rotation.y = -0.1;
+        spacecraft.add(rightWing);
+
+        const leftTip = new THREE.Mesh(
+            new THREE.BoxGeometry(0.2, 0.3, 0.8), accentMaterial
+        );
+        leftTip.position.set(-2.4, 0.15, -0.2);
+        leftTip.rotation.z = 0.1;
+        spacecraft.add(leftTip);
+
+        const rightTip = new THREE.Mesh(
+            new THREE.BoxGeometry(0.2, 0.3, 0.8), accentMaterial
+        );
+        rightTip.position.set(2.4, 0.15, -0.2);
+        rightTip.rotation.z = -0.1;
+        spacecraft.add(rightTip);
+
+        // --- Fins ---
+        const leftFin = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 1.0, 1.4), darkMetalMaterial
+        );
+        leftFin.position.set(-0.8, 0.9, -1.4);
+        leftFin.rotation.x = -0.2;
+        leftFin.rotation.z = 0.3;
+        spacecraft.add(leftFin);
+
+        const rightFin = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 1.0, 1.4), darkMetalMaterial
+        );
+        rightFin.position.set(0.8, 0.9, -1.4);
+        rightFin.rotation.x = -0.2;
+        rightFin.rotation.z = -0.3;
+        spacecraft.add(rightFin);
+
+        const centerFin = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 0.6, 1.0), darkMetalMaterial
+        );
+        centerFin.position.set(0, 1.0, -1.6);
+        centerFin.rotation.x = -0.1;
+        spacecraft.add(centerFin);
+
+        // --- Engine Housing (SAME) ---
+        const engineHousing = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.9, 0.8, 0.8, 8), darkMetalMaterial
+        );
+        engineHousing.rotation.x = Math.PI / 2;
+        engineHousing.position.z = -2.3;
+        spacecraft.add(engineHousing);
+
+        // Nozzles (SAME positions)
+        const nozzlePositions = [
+            [-0.5, 0, -2.8],
+            [0.5, 0, -2.8],
+            [0, 0, -2.9]
+        ];
+        nozzlePositions.forEach(pos => {
+            const nozzle = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.25, 0.35, 0.6, 8), darkMetalMaterial
+            );
+            nozzle.rotation.x = Math.PI / 2;
+            nozzle.position.set(pos[0], pos[1], pos[2]);
+            spacecraft.add(nozzle);
+        });
+
+        // Antenna
+        const antennaBase = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.15, 0.2, 6), darkMetalMaterial
+        );
+        antennaBase.position.set(0, 0.95, 1.5);
+        spacecraft.add(antennaBase);
+
+        const antennaRod = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), hullMaterial
+        );
+        antennaRod.position.set(0, 1.6, 1.5);
+        spacecraft.add(antennaRod);
+
+        const antennaBall = new THREE.Mesh(
+            new THREE.SphereGeometry(0.1, 6), accentMaterial
+        );
+        antennaBall.position.set(0, 2.2, 1.5);
+        spacecraft.add(antennaBall);
+
+        // Side Thrusters
+        const thrusterGeo = new THREE.CylinderGeometry(0.2, 0.25, 0.5, 6);
+        const leftThruster = new THREE.Mesh(thrusterGeo, darkMetalMaterial);
+        leftThruster.position.set(-1.1, 0.1, -1.8);
+        leftThruster.rotation.z = Math.PI / 2;
+        leftThruster.rotation.x = 0.2;
+        spacecraft.add(leftThruster);
+
+        const rightThruster = new THREE.Mesh(thrusterGeo, darkMetalMaterial);
+        rightThruster.position.set(1.1, 0.1, -1.8);
+        rightThruster.rotation.z = -Math.PI / 2;
+        rightThruster.rotation.x = 0.2;
+        spacecraft.add(rightThruster);
+
+        // Greebles
+        for (let i = 0; i < 8; i++) {
+            const greeble = new THREE.Mesh(
+                new THREE.BoxGeometry(0.15, 0.15, 0.15),
+                i % 2 === 0 ? accentMaterial : darkMetalMaterial
+            );
+            greeble.position.set(
+                (Math.random() - 0.5) * 1.8,
+                (Math.random() - 0.5) * 1.0 + 0.3,
+                (Math.random() - 0.5) * 3.0
+            );
+            greeble.rotation.set(Math.random(), Math.random(), Math.random());
+            spacecraft.add(greeble);
+        }
+
+        // ============================================
+        // 🔥 FIRE / EXHAUST FLAMES (NEW!)
+        // ============================================
+        // Fire flames nikal rahe hain har nozzle se
+        // Outer flame (orange-red glow), inner flame (yellow-white hot core)
+        
+        const fireGroups = []; // Store flame groups for animation
+
+        // Multi-layered flame using cones
+        function createFlame(nozzlePos) {
+            const flameGroup = new THREE.Group();
+            flameGroup.position.set(nozzlePos[0], nozzlePos[1], nozzlePos[2] - 0.3);
+            
+            // Outer flame — big, orange-red, transparent
+            const outerFlameMat = new THREE.MeshBasicMaterial({
+                color: 0xff4400,
+                transparent: true,
+                opacity: 0.75,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const outerFlame = new THREE.Mesh(
+                new THREE.ConeGeometry(0.35, 1.8, 8),
+                outerFlameMat
+            );
+            outerFlame.rotation.x = -Math.PI / 2; // Point backward (-Z)
+            outerFlame.position.z = -0.9;
+            flameGroup.add(outerFlame);
+
+            // Middle flame — orange-yellow
+            const midFlameMat = new THREE.MeshBasicMaterial({
+                color: 0xffaa00,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const midFlame = new THREE.Mesh(
+                new THREE.ConeGeometry(0.22, 1.3, 8),
+                midFlameMat
+            );
+            midFlame.rotation.x = -Math.PI / 2;
+            midFlame.position.z = -0.65;
+            flameGroup.add(midFlame);
+
+            // Inner flame — bright yellow/white hot core
+            const innerFlameMat = new THREE.MeshBasicMaterial({
+                color: 0xffff88,
+                transparent: true,
+                opacity: 1.0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const innerFlame = new THREE.Mesh(
+                new THREE.ConeGeometry(0.12, 0.7, 6),
+                innerFlameMat
+            );
+            innerFlame.rotation.x = -Math.PI / 2;
+            innerFlame.position.z = -0.35;
+            flameGroup.add(innerFlame);
+
+            // Bright glow at the nozzle mouth
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: 0x88ccff,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const glow = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25, 8),
+                glowMat
+            );
+            flameGroup.add(glow);
+
+            // Store references for animation
+            flameGroup.userData = {
+                outer: outerFlame,
+                mid: midFlame,
+                inner: innerFlame,
+                glow: glow,
+                baseLength: 1.8
+            };
+
+            return flameGroup;
+        }
+
+        // Create flames for each nozzle
+        nozzlePositions.forEach(pos => {
+            const flame = createFlame(pos);
+            spacecraft.add(flame);
+            fireGroups.push(flame);
+        });
+
+        // Point light at the engine area — warm fire glow
+        const engineLight = new THREE.PointLight(0xff6600, 2, 12);
+        engineLight.position.set(0, 0, -3.5);
+        spacecraft.add(engineLight);
+
+        // Second light for blue core
+        const engineCoreLight = new THREE.PointLight(0x88ccff, 1, 8);
+        engineCoreLight.position.set(0, 0, -2.9);
+        spacecraft.add(engineCoreLight);
+
+        // Position spacecraft
+        spacecraft.position.set(0, 0, 2);
+        spacecraft.rotation.y = Math.PI; // Face away (nose points -Z direction, engine toward camera)
+        // Wait - actually we want the ship to fly INTO the screen (-Z), so nose should point -Z
+        // The model was built with nose at +Z. So rotate 180° so nose points -Z
+        spacecraft.rotation.y = Math.PI;
+        
+        scene.add(spacecraft);
+
+        // =====================
+        // ASTEROIDS
+        // =====================
+        const asteroids = [];
+        const asteroidMaterials = [
+            new THREE.MeshStandardMaterial({ color: 0x886655, roughness: 0.9, metalness: 0.1 }),
+            new THREE.MeshStandardMaterial({ color: 0x665544, roughness: 0.9, metalness: 0.1 }),
+            new THREE.MeshStandardMaterial({ color: 0x776655, roughness: 0.85, metalness: 0.2 })
+        ];
+
+        function createAsteroid() {
+            const size = 0.5 + Math.random() * 1.5;
+            const geo = new THREE.IcosahedronGeometry(size, 0);
+            
+            const positions = geo.attributes.position;
+            for (let i = 0; i < positions.count; i++) {
+                positions.setXYZ(i,
+                    positions.getX(i) * (0.8 + Math.random() * 0.4),
+                    positions.getY(i) * (0.8 + Math.random() * 0.4),
+                    positions.getZ(i) * (0.8 + Math.random() * 0.4)
+                );
+            }
+            geo.computeVertexNormals();
+
+            const mat = asteroidMaterials[Math.floor(Math.random() * asteroidMaterials.length)];
+            const mesh = new THREE.Mesh(geo, mat);
+            
+            mesh.position.set(
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 14,
+                -60 - Math.random() * 40
+            );
+            
+            mesh.userData = {
+                speed: 0.3 + Math.random() * 0.5,
+                rotationSpeed: {
+                    x: (Math.random() - 0.5) * 0.03,
+                    y: (Math.random() - 0.5) * 0.03,
+                    z: (Math.random() - 0.5) * 0.03
+                },
+                size: size
+            };
+            
+            scene.add(mesh);
+            asteroids.push(mesh);
+        }
+
+        // =====================
+        // GAME STATE
+        // =====================
+        const gameState = {
+            running: false,
+            score: 0,
+            speed: 1.0,
+            shield: 100,
+            boosting: false,
+            keys: {},
+            cameraShake: 0,
+            baseSpeed: 0.4,
+            spawnTimer: 0,
+            spawnInterval: 1.2
+        };
+
+        // =====================
+        // CONTROLS
+        // =====================
+        document.addEventListener('keydown', (e) => {
+            gameState.keys[e.code] = true;
+            if (e.code === 'Space') e.preventDefault();
+        });
+        document.addEventListener('keyup', (e) => {
+            gameState.keys[e.code] = false;
+        });
+
+        // =====================
+        // UI
+        // =====================
+        const scoreEl = document.getElementById('score');
+        const speedEl = document.getElementById('speed');
+        const shieldEl = document.getElementById('shield');
+        const gameOverEl = document.getElementById('gameOver');
+        const finalScoreEl = document.getElementById('finalScore');
+        const startScreen = document.getElementById('startScreen');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+
+        function startGame() {
+            gameState.running = true;
+            gameState.score = 0;
+            gameState.speed = 1.0;
+            gameState.shield = 100;
+            gameState.spawnTimer = 0;
+            gameState.cameraShake = 0;
+            
+            spacecraft.position.set(0, 0, 2);
+            spacecraft.rotation.set(0, Math.PI, 0);
+            
+            asteroids.forEach(a => scene.remove(a));
+            asteroids.length = 0;
+            
+            startScreen.style.display = 'none';
+            gameOverEl.style.display = 'none';
+            
+            updateHUD();
+        }
+
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        function updateHUD() {
+            scoreEl.textContent = Math.floor(gameState.score);
+            speedEl.textContent = gameState.speed.toFixed(1) + 'x';
+            
+            const shieldPercent = Math.max(0, Math.round(gameState.shield));
+            if (shieldPercent > 60) {
+                shieldEl.textContent = '🟢 ' + shieldPercent + '%';
+                shieldEl.style.color = '#44ff88';
+            } else if (shieldPercent > 30) {
+                shieldEl.textContent = '🟡 ' + shieldPercent + '%';
+                shieldEl.style.color = '#ffcc00';
+            } else {
+                shieldEl.textContent = '🔴 ' + shieldPercent + '%';
+                shieldEl.style.color = '#ff4466';
+            }
+        }
+
+        function gameOver() {
+            gameState.running = false;
+            finalScoreEl.textContent = Math.floor(gameState.score);
+            gameOverEl.style.display = 'block';
+        }
+
+        // =====================
+        // ANIMATION LOOP
+        // =====================
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const delta = Math.min(clock.getDelta(), 0.1);
+            const time = performance.now() * 0.001;
+
+            if (gameState.running) {
+                // ============ MOVEMENT ============
+                const moveSpeed = 12 * delta;
+                const keys = gameState.keys;
+                
+                let targetTilt = 0;
+                
+                if (keys['ArrowLeft'] || keys['KeyA']) {
+                    spacecraft.position.x -= moveSpeed;
+                    targetTilt = 0.4;
+                } else if (keys['ArrowRight'] || keys['KeyD']) {
+                    spacecraft.position.x += moveSpeed;
+                    targetTilt = -0.4;
+                }
+                
+                // Smooth tilt (rotation on Z axis) - but base rotation Y is PI
+                spacecraft.rotation.z = THREE.MathUtils.lerp(spacecraft.rotation.z, targetTilt, 0.1);
+                
+                if (keys['ArrowUp'] || keys['KeyW']) {
+                    spacecraft.position.y += moveSpeed * 0.7;
+                } else if (keys['ArrowDown'] || keys['KeyS']) {
+                    spacecraft.position.y -= moveSpeed * 0.7;
+                }
+                
+                spacecraft.position.x = THREE.MathUtils.clamp(spacecraft.position.x, -8, 8);
+                spacecraft.position.y = THREE.MathUtils.clamp(spacecraft.position.y, -6, 6);
+                
+                // Boost
+                gameState.boosting = keys['Space'];
+                const targetSpeed = gameState.boosting ? 2.5 : 1.0;
+                gameState.speed = THREE.MathUtils.lerp(gameState.speed, targetSpeed, 0.05);
+                
+                // Score
+                gameState.score += delta * 20 * gameState.speed;
+                
+                if (gameState.boosting) {
+                    gameState.cameraShake = 0.08;
+                }
+                
+                // Camera follow
+                const shakeX = (Math.random() - 0.5) * gameState.cameraShake;
+                const shakeY = (Math.random() - 0.5) * gameState.cameraShake;
+                gameState.cameraShake *= 0.9;
+                
+                camera.position.x = THREE.MathUtils.lerp(camera.position.x, spacecraft.position.x * 0.5, 0.05) + shakeX;
+                camera.position.y = THREE.MathUtils.lerp(camera.position.y, 4 + spacecraft.position.y * 0.3, 0.05) + shakeY;
+                camera.lookAt(spacecraft.position.x * 0.3, spacecraft.position.y * 0.2, -8);
+                
+                // ============ SPAWN ============
+                gameState.spawnTimer += delta;
+                if (gameState.spawnTimer > gameState.spawnInterval) {
+                    gameState.spawnTimer = 0;
+                    createAsteroid();
+                    gameState.spawnInterval = Math.max(0.4, gameState.spawnInterval - 0.01);
+                }
+                
+                // ============ UPDATE ASTEROIDS ============
+                for (let i = asteroids.length - 1; i >= 0; i--) {
+                    const asteroid = asteroids[i];
+                    
+                    asteroid.position.z += (asteroid.userData.speed + gameState.baseSpeed) * gameState.speed * delta * 15;
+                    
+                    asteroid.rotation.x += asteroid.userData.rotationSpeed.x;
+                    asteroid.rotation.y += asteroid.userData.rotationSpeed.y;
+                    asteroid.rotation.z += asteroid.userData.rotationSpeed.z;
+                    
+                    if (asteroid.position.z > 18) {
+                        scene.remove(asteroid);
+                        asteroids.splice(i, 1);
+                        continue;
+                    }
+                    
+                    // Collision
+                    const dx = asteroid.position.x - spacecraft.position.x;
+                    const dy = asteroid.position.y - spacecraft.position.y;
+                    const dz = asteroid.position.z - spacecraft.position.z;
+                    const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    
+                    const collisionRadius = asteroid.userData.size + 1.2;
+                    
+                    if (distance < collisionRadius) {
+                        const damage = asteroid.userData.size * 25;
+                        gameState.shield -= damage;
+                        gameState.cameraShake = 0.5;
+                        
+                        scene.remove(asteroid);
+                        asteroids.splice(i, 1);
+                        
+                        spacecraft.children.forEach(child => {
+                            if (child.material && child.material.emissive) {
+                                child.material.emissive.setHex(0xff0000);
+                                setTimeout(() => {
+                                    if (child.material) child.material.emissive.setHex(0x000000);
+                                }, 150);
+                            }
+                        });
+                        
+                        if (gameState.shield <= 0) {
+                            gameState.shield = 0;
+                            updateHUD();
+                            gameOver();
+                            return;
+                        }
+                    }
+                }
+                
+                // Move stars
+                stars.position.z += gameState.speed * delta * 3;
+                if (stars.position.z > 100) stars.position.z = 0;
+                
+                updateHUD();
+            }
+            
+            // ============================================
+            // 🔥 FLAME ANIMATION (always active)
+            // ============================================
+            const boostMult = gameState.boosting ? 1.8 : 1.0;
+            const flicker = 0.85 + Math.sin(time * 25) * 0.15;
+            
+            fireGroups.forEach(flameGroup => {
+                const data = flameGroup.userData;
+                // Flicker effect — random length variation
+                const randomFlicker = 0.9 + Math.random() * 0.3;
+                const lengthScale = boostMult * randomFlicker;
+                
+                // Scale outer flame
+                data.outer.scale.set(1, lengthScale, 1);
+                data.outer.material.opacity = 0.6 + Math.random() * 0.3;
+                
+                // Scale mid flame
+                data.mid.scale.set(1, lengthScale * 0.9, 1);
+                data.mid.material.opacity = 0.75 + Math.random() * 0.25;
+                
+                // Scale inner flame
+                data.inner.scale.set(1, lengthScale * 0.85, 1);
+                data.inner.material.opacity = 0.9 + Math.random() * 0.1;
+                
+                // Glow pulse
+                const glowScale = 1 + Math.sin(time * 20) * 0.15 + (gameState.boosting ? 0.3 : 0);
+                data.glow.scale.setScalar(glowScale);
+                data.glow.material.opacity = 0.7 + Math.random() * 0.3;
+            });
+            
+            // Engine lights flicker
+            engineLight.intensity = (1.5 + Math.sin(time * 15) * 0.5) * (gameState.boosting ? 2 : 1);
+            engineLight.color.setHSL(0.06, 1, 0.5 + Math.random() * 0.1); // orange fire
+            
+            engineCoreLight.intensity = (0.8 + Math.sin(time * 20) * 0.3) * (gameState.boosting ? 1.8 : 1);
+            
+            // Idle bob when not playing
+            if (!gameState.running) {
+                spacecraft.position.y = 0.2 + Math.sin(time * 1.5) * 0.1;
+                spacecraft.rotation.z = Math.sin(time * 0.8) * 0.05;
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+        // Idle initial state
+        spacecraft.position.set(0, 0.2, 2);
+        spacecraft.rotation.set(0, Math.PI, 0);
+        for (let i = 0; i < 3; i++) createAsteroid();
+
+    </script>
+</body>
+</html>
