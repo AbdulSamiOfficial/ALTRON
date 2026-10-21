@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌌 Gravity Puzzle</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; color: white; cursor: crosshair; }
+        #hud {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(10,5,30,0.9); padding: 14px 22px;
+            border-radius: 12px; border: 2px solid #8866ff;
+            box-shadow: 0 0 20px #8866ff66; pointer-events: none;
+            min-width: 200px;
+        }
+        .label { color: #aa88ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .value { color: #fff; font-size: 22px; font-weight: bold; }
+        .row { margin: 6px 0; }
+        #levelInfo {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(30,15,0,0.9); padding: 14px 22px;
+            border-radius: 12px; border: 2px solid #ffaa00;
+            box-shadow: 0 0 20px #ffaa0066; pointer-events: none;
+            text-align: right; min-width: 180px;
+        }
+        #levelInfo .label { color: #ffcc66; }
+        #controls {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(10,5,30,0.9); padding: 10px 26px;
+            border-radius: 30px; border: 1px solid #8866ff;
+            font-size: 14px; color: #ccbbff; pointer-events: none; white-space: nowrap;
+        }
+        #gameOver, #startScreen, #levelComplete {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 20; text-align: center;
+        }
+        #startScreen { background: radial-gradient(circle, #150a30, #000005); }
+        #gameOver { background: rgba(20,0,20,0.96); display: none; }
+        #levelComplete { background: rgba(0,20,20,0.96); display: none; }
+        #startScreen h1, #gameOver h1, #levelComplete h1 {
+            font-size: 52px; margin: 0; letter-spacing: 4px;
+        }
+        #startScreen h1 { color: #8866ff; text-shadow: 0 0 30px #8866ff, 0 0 60px #4400ff; }
+        #gameOver h1 { color: #ff4466; text-shadow: 0 0 30px #ff4466; }
+        #levelComplete h1 { color: #00ff88; text-shadow: 0 0 30px #00ff88; }
+        #startScreen p, #gameOver p, #levelComplete p { font-size: 18px; color: #bb99ff; margin: 10px 0; }
+        button {
+            margin-top: 30px; padding: 14px 44px;
+            background: linear-gradient(45deg, #4400aa, #8866ff);
+            color: white; border: none; border-radius: 40px;
+            font-size: 20px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 0 30px #8866ff; transition: 0.3s;
+            letter-spacing: 2px; margin: 10px;
+        }
+        button:hover { transform: scale(1.1); box-shadow: 0 0 60px #8866ff; }
+        .key-hint {
+            display: inline-block; padding: 5px 12px; margin: 0 4px;
+            background: #221144; border-radius: 6px; border: 1px solid #8866ff;
+            font-family: monospace; color: #ccbbff; font-weight: bold;
+        }
+        #finalScore { color: #ffcc00; font-size: 28px; font-weight: bold; }
+        #stars {
+            position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+            font-size: 40px; letter-spacing: 10px;
+        }
+        #crosshair {
+            position: absolute; width: 26px; height: 26px;
+            pointer-events: none; z-index: 5;
+            border: 2px solid #8866ff;
+            border-radius: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 12px #8866ff;
+            display: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: ''; position: absolute; background: #8866ff;
+        }
+        #crosshair::before { top: 50%; left: 5px; right: 5px; height: 1px; }
+        #crosshair::after { left: 50%; top: 5px; bottom: 5px; width: 1px; }
+        #trajectoryInfo {
+            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(10,5,30,0.9); padding: 8px 20px;
+            border-radius: 20px; border: 1px solid #8866ff;
+            font-size: 14px; color: #ccbbff; display: none;
+            pointer-events: none;
+        }
+        #levelComplete .stats {
+            display: flex; gap: 40px; margin: 20px 0;
+        }
+        #levelComplete .stat {
+            background: rgba(0,50,30,0.6); padding: 12px 24px;
+            border-radius: 12px; border: 1px solid #00ff88;
+        }
+        #levelComplete .stat .label { color: #88ffcc; font-size: 12px; }
+        #levelComplete .stat .value { color: #00ff88; font-size: 24px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="crosshair"></div>
+
+    <div id="startScreen">
+        <h1>🌌 GRAVITY PUZZLE</h1>
+        <p>Use planet gravity to guide your ship to the target</p>
+        <p style="margin-top: 30px; color: #8866ff; font-size: 14px;">HOW TO PLAY</p>
+        <p><span class="key-hint">CLICK</span> — Aim &amp; hold</p>
+        <p><span class="key-hint">DRAG</span> — Set power (longer = faster)</p>
+        <p><span class="key-hint">RELEASE</span> — Launch!</p>
+        <p style="font-size: 14px; color: #ffaa00; margin-top: 20px;">🎯 Hit the green target</p>
+        <p style="font-size: 14px; color: #ff4466;">⚫ Don't crash into planets</p>
+        <button id="startBtn">BEGIN</button>
+    </div>
+
+    <div id="hud">
+        <div class="row"><span class="label">Score</span><br><span class="value" id="score">0</span></div>
+        <div class="row"><span class="label">Total Stars</span><br><span class="value" id="totalStars" style="color:#ffcc00;">⭐ 0</span></div>
+        <div class="row"><span class="label">Attempts</span><br><span class="value" id="attempts" style="font-size:18px;">0</span></div>
+    </div>
+
+    <div id="levelInfo">
+        <div class="label">Level</div>
+        <div class="value" id="levelNum">1 / 10</div>
+        <div class="label" style="margin-top:8px;">Goal</div>
+        <div class="value" id="levelGoal" style="font-size:14px; color:#00ff88;">Hit green target</div>
+    </div>
+
+    <div id="trajectoryInfo">Power: <span id="powerValue">0%</span></div>
+
+    <div id="controls">Click & Drag to Aim &nbsp;|&nbsp; Release to Launch</div>
+
+    <div id="levelComplete">
+        <h1>✅ LEVEL CLEARED!</h1>
+        <div id="stars">⭐⭐⭐</div>
+        <div class="stats">
+            <div class="stat"><div class="label">Attempts</div><div class="value" id="completeAttempts">0</div></div>
+            <div class="stat"><div class="label">Score</div><div class="value" id="completeScore">0</div></div>
+        </div>
+        <button id="nextBtn">NEXT LEVEL →</button>
+    </div>
+
+    <div id="gameOver">
+        <h1>💥 MISSION FAILED</h1>
+        <p>Ship destroyed or lost in space</p>
+        <p>Score: <span id="finalScore">0</span></p>
+        <button id="retryBtn">RETRY LEVEL</button>
+        <button id="restartGameBtn" style="background: linear-gradient(45deg, #660044, #ff4466);">START OVER</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // =====================
+        // SCENE
+        // =====================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020010);
+        scene.fog = new THREE.FogExp2(0x020010, 0.006);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+        camera.position.set(0, 15, 60);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // =====================
+        // LIGHTS
+        // =====================
+        scene.add(new THREE.AmbientLight(0x334466, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        dirLight.position.set(10, 30, 20);
+        scene.add(dirLight);
+        const fillLight = new THREE.DirectionalLight(0x8866ff, 0.5);
+        fillLight.position.set(-20, 10, -10);
+        scene.add(fillLight);
+
+        // =====================
+        // STARFIELD
+        // =====================
+        const starsGeo = new THREE.BufferGeometry();
+        const starCount = 3000;
+        const starPos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount * 3; i += 3) {
+            starPos[i] = (Math.random() - 0.5) * 600;
+            starPos[i+1] = (Math.random() - 0.5) * 400;
+            starPos[i+2] = (Math.random() - 0.5) * 300 - 100;
+        }
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0.9 }));
+        scene.add(stars);
+
+        // =====================
+        // GAME STATE
+        // =====================
+        const state = {
+            running: false,
+            score: 0,
+            totalStars: 0,
+            attempts: 0,
+            level: 1,
+            maxLevel: 10,
+            planets: [],
+            ship: null,
+            target: null,
+            shipVelocity: new THREE.Vector3(),
+            shipActive: false,
+            aiming: false,
+            aimStart: new THREE.Vector2(),
+            aimCurrent: new THREE.Vector2(),
+            aimLine: null,
+            power: 0,
+            gravityConstant: 800,
+            levelAttempts: 0,
+            trajectoryPoints: [],
+            trajectoryLine: null,
+            launched: false,
+            launchTime: 0,
+            cameraShake: 0
+        };
+
+        // =====================
+        // LEVEL DEFINITIONS
+        // =====================
+        const LEVELS = [
+            {
+                shipStart: new THREE.Vector3(-20, 0, 0),
+                target: new THREE.Vector3(20, 0, 0),
+                planets: [
+                    { pos: new THREE.Vector3(0, 8, 0), radius: 2.5, mass: 1.0, color: 0x4488ff }
+                ],
+                maxAttempts: 5
+            },
+            {
+                shipStart: new THREE.Vector3(-25, 0, 0),
+                target: new THREE.Vector3(25, 0, 0),
+                planets: [
+                    { pos: new THREE.Vector3(0, 0, 0), radius: 3.5, mass: 1.5, color: 0xff4488 }
+                ],
+                maxAttempts: 5
+            },
+            {
+                shipStart: new THREE.Vector3(-25, -10, 0),
+                target: new THREE.Vector3(25, 10, 0),
+                planets: [
+                    { pos: new THREE.Vector3(-8, 5, 0), radius: 2, mass: 1.0, color: 0x44ff88 },
+                    { pos: new THREE.Vector3(8, -5, 0), radius: 2, mass: 1.0, color: 0xffaa44 }
+                ],
+                maxAttempts: 5
+            },
+            {
+                shipStart: new THREE.Vector3(-25, 0, 0),
+                target: new THREE.Vector3(25, 0, 0),
+                planets: [
+                    { pos: new THREE.Vector3(-10, 8, 0), radius: 1.8, mass: 0.8, color: 0xff66ff },
+                    { pos: new THREE.Vector3(0, -8, 0), radius: 1.8, mass: 0.8, color: 0x66ffff },
+                    { pos: new THREE.Vector3(10, 8, 0), radius: 1.8, mass: 0.8, color: 0xffff66 }
+                ],
+                maxAttempts: 5
+            },
+            {
+                shipStart: new THREE.Vector3(0, -25, 0),
+                target: new THREE.Vector3(0, 25, 0),
+                planets: [
+                    { pos: new THREE.Vector3(-12, 0, 0), radius: 2.5, mass: 1.2, color: 0xff4488 },
+                    { pos: new THREE.Vector3(12, 0, 0), radius: 2.5, mass: 1.2, color: 0x4488ff }
+                ],
+                maxAttempts: 5
+            },
+            {
+                shipStart: new THREE.Vector3(-30, -10, 0),
+                target: new THREE.Vector3(30, 10, 0),
+                planets: [
+                    { pos: new THREE.Vector3(0, 0, 0), radius: 4.5, mass: 2.5, color: 0x220044, isBlackHole: true }
+                ],
+                maxAttempts: 4
+            },
+            {
+                shipStart: new THREE.Vector3(-30, 20, 0),
+                target: new THREE.Vector3(30, -20, 0),
+                planets: [
+                    { pos: new THREE.Vector3(-15, 0, 0), radius: 2, mass: 0.9, color: 0x44ff88 },
+                    { pos: new THREE.Vector3(0, 10, 0), radius: 2, mass: 0.9, color: 0x88ff44 },
+                    { pos: new THREE.Vector3(15, 0, 0), radius: 2, mass: 0.9, color: 0xff8844 }
+                ],
+                maxAttempts: 5
+            },
+            {
+                shipStart: new THREE.Vector3(0, -25, 0),
+                target: new THREE.Vector3(0, 25, 0),
+                planets: [
+                    { pos: new THREE.Vector3(0, 0, 0), radius: 3.5, mass: 1.8, color: 0xff66ff },
+                    { pos: new THREE.Vector3(-10, -10, 0), radius: 1.5, mass: 0.6, color: 0xffaa00 },
+                    { pos: new THREE.Vector3(10, 10, 0), radius: 1.5, mass: 0.6, color: 0xffaa00 }
+                ],
+                maxAttempts: 4
+            },
+            {
+                shipStart: new THREE.Vector3(-30, 0, 0),
+                target: new THREE.Vector3(30, 0, 0),
+                planets: [
+                    { pos: new THREE.Vector3(-8, 0, 0), radius: 3, mass: 2.0, color: 0x220044, isBlackHole: true },
+                    { pos: new THREE.Vector3(8, 0, 0), radius: 3, mass: 2.0, color: 0x220044, isBlackHole: true }
+                ],
+                maxAttempts: 4
+            },
+            {
+                shipStart: new THREE.Vector3(-35, 0, 0),
+                target: new THREE.Vector3(35, 0, 0),
+                planets: [
+                    { pos: new THREE.Vector3(-20, 8, 0), radius: 2, mass: 0.8, color: 0xff4488 },
+                    { pos: new THREE.Vector3(-10, -8, 0), radius: 2, mass: 0.8, color: 0x44ff88 },
+                    { pos: new THREE.Vector3(0, 0, 0), radius: 3, mass: 1.5, color: 0x220044, isBlackHole: true },
+                    { pos: new THREE.Vector3(10, 8, 0), radius: 2, mass: 0.8, color: 0x4488ff },
+                    { pos: new THREE.Vector3(20, -8, 0), radius: 2, mass: 0.8, color: 0xffaa44 }
+                ],
+                maxAttempts: 3
+            }
+        ];
+
+        // =====================
+        // SHIP CREATION
+        // =====================
+        function createShip() {
+            const ship = new THREE.Group();
+            
+            const hullMat = new THREE.MeshStandardMaterial({ color: 0xb0c0d0, roughness: 0.4, metalness: 0.8 });
+            const accentMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, roughness: 0.3, metalness: 0.7, emissive: 0x006688 });
+            
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.5, 10), hullMat);
+            body.rotation.x = Math.PI / 2;
+            ship.add(body);
+            
+            const nose = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 10), hullMat);
+            nose.position.z = -0.75;
+            ship.add(nose);
+            
+            const rear = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 10), hullMat);
+            rear.position.z = 0.75;
+            ship.add(rear);
+            
+            const leftWing = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.5), hullMat);
+            leftWing.position.set(-0.65, 0, 0.1);
+            leftWing.rotation.z = 0.1;
+            ship.add(leftWing);
+            
+            const rightWing = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.5), hullMat);
+            rightWing.position.set(0.65, 0, 0.1);
+            rightWing.rotation.z = -0.1;
+            ship.add(rightWing);
+            
+            const leftTip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.3), accentMat);
+            leftTip.position.set(-1.1, 0, 0.1);
+            ship.add(leftTip);
+            
+            const rightTip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.3), accentMat);
+            rightTip.position.set(1.1, 0, 0.1);
+            ship.add(rightTip);
+            
+            const flameMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
+            const flame = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.2, 6), flameMat);
+            flame.rotation.x = Math.PI / 2;
+            flame.position.z = 1.3;
+            ship.add(flame);
+            ship.userData.flame = flame;
+            
+            const light = new THREE.PointLight(0x00ffff, 1.5, 5);
+            ship.add(light);
+            
+            return ship;
+        }
+
+        // =====================
+        // PLANET CREATION
+        // =====================
+        function createPlanet(def) {
+            const group = new THREE.Group();
+            group.position.copy(def.pos);
+            
+            const coreMat = new THREE.MeshStandardMaterial({
+                color: def.color,
+                roughness: 0.7,
+                metalness: 0.2,
+                emissive: def.color,
+                emissiveIntensity: def.isBlackHole ? 0.8 : 0.3
+            });
+            const core = new THREE.Mesh(new THREE.SphereGeometry(def.radius, 24, 24), coreMat);
+            group.add(core);
+            
+            const atmoMat = new THREE.MeshBasicMaterial({
+                color: def.color,
+                transparent: true,
+                opacity: 0.3,
+                side: THREE.BackSide
+            });
+            const atmo = new THREE.Mesh(new THREE.SphereGeometry(def.radius * 1.3, 24, 24), atmoMat);
+            group.add(atmo);
+            
+            if (def.isBlackHole) {
+                const disk = new THREE.Mesh(
+                    new THREE.TorusGeometry(def.radius * 1.8, 0.2, 8, 48),
+                    new THREE.MeshBasicMaterial({ color: 0xff44aa, transparent: true, opacity: 0.8 })
+                );
+                disk.rotation.x = Math.PI / 2.5;
+                group.add(disk);
+                group.userData.disk = disk;
+                
+                core.material.color.setHex(0x000000);
+                core.material.emissiveIntensity = 0.05;
+                
+                const innerRing = new THREE.Mesh(
+                    new THREE.TorusGeometry(def.radius * 1.1, 0.15, 8, 32),
+                    new THREE.MeshBasicMaterial({ color: 0xff88dd, transparent: true, opacity: 0.9 })
+                );
+                innerRing.rotation.x = Math.PI / 2.5;
+                group.add(innerRing);
+                group.userData.innerRing = innerRing;
+                
+                const light = new THREE.PointLight(0xff44aa, 2, def.radius * 6);
+                group.add(light);
+            } else {
+                for (let i = 0; i < 5; i++) {
+                    const craterSize = def.radius * 0.12 + Math.random() * def.radius * 0.1;
+                    const crater = new THREE.Mesh(
+                        new THREE.SphereGeometry(craterSize, 8, 8),
+                        new THREE.MeshStandardMaterial({ color: def.color, roughness: 1 })
+                    );
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(Math.random() * 2 - 1);
+                    crater.position.set(
+                        Math.sin(phi) * Math.cos(theta) * def.radius * 0.85,
+                        Math.sin(phi) * Math.sin(theta) * def.radius * 0.85,
+                        Math.cos(phi) * def.radius * 0.85
+                    );
+                    group.add(crater);
+                }
+            }
+            
+            group.userData = {
+                def: def,
+                radius: def.radius,
+                mass: def.mass,
+                isBlackHole: def.isBlackHole || false
+            };
+            
+            scene.add(group);
+            state.planets.push(group);
+            return group;
+        }
+
+        // =====================
+        // TARGET CREATION
+        // =====================
+        function createTarget(pos) {
+            const group = new THREE.Group();
+            group.position.copy(pos);
+            
+            const outerRing = new THREE.Mesh(
+                new THREE.TorusGeometry(2, 0.15, 8, 32),
+                new THREE.MeshBasicMaterial({ color: 0x00ff88 })
+            );
+            outerRing.rotation.y = Math.PI / 2;
+            group.add(outerRing);
+            
+            const midRing = new THREE.Mesh(
+                new THREE.TorusGeometry(1.4, 0.1, 8, 32),
+                new THREE.MeshBasicMaterial({ color: 0x44ffaa, transparent: true, opacity: 0.8 })
+            );
+            midRing.rotation.y = Math.PI / 2;
+            group.add(midRing);
+            
+            const innerGlow = new THREE.Mesh(
+                new THREE.SphereGeometry(0.8, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.4 })
+            );
+            group.add(innerGlow);
+            
+            const center = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xffffff })
+            );
+            group.add(center);
+            
+            const light = new THREE.PointLight(0x00ff88, 2, 10);
+            group.add(light);
+            
+            group.userData = {
+                outerRing, midRing, innerGlow, center, light
+            };
+            
+            scene.add(group);
+            state.target = group;
+            return group;
+        }
+
+        // =====================
+        // AIM LINES
+        // =====================
+        const aimLineGeo = new THREE.BufferGeometry();
+        const aimLineMat = new THREE.LineBasicMaterial({ color: 0x8866ff, transparent: true, opacity: 0.7 });
+        const aimLine = new THREE.Line(aimLineGeo, aimLineMat);
+        scene.add(aimLine);
+        state.aimLine = aimLine;
+
+        const trajectoryMat = new THREE.PointsMaterial({ 
+            color: 0x8866ff, 
+            size: 0.4, 
+            transparent: true, 
+            opacity: 0.7 
+        });
+        const trajectoryGeo = new THREE.BufferGeometry();
+        const trajectoryLine = new THREE.Points(trajectoryGeo, trajectoryMat);
+        scene.add(trajectoryLine);
+        state.trajectoryLine = trajectoryLine;
+
+        // =====================
+        // INPUT
+        // =====================
+        const mouse = new THREE.Vector2();
+        const raycaster = new THREE.Raycaster();
+        const groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        const mouseWorld = new THREE.Vector3();
+        
+        const crosshairEl = document.getElementById('crosshair');
+        const trajectoryInfoEl = document.getElementById('trajectoryInfo');
+        const powerValueEl = document.getElementById('powerValue');
+
+        document.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            crosshairEl.style.left = e.clientX + 'px';
+            crosshairEl.style.top = e.clientY + 'px';
+            
+            if (state.running) {
+                raycaster.setFromCamera(mouse, camera);
+                raycaster.ray.intersectPlane(groundPlane, mouseWorld);
+            }
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            if (e.button === 0 && state.running && !state.shipActive && state.attempts < state.currentLevel.maxAttempts) {
+                state.aiming = true;
+                state.aimStart.set(mouseWorld.x, mouseWorld.y);
+                trajectoryInfoEl.style.display = 'block';
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (e.button === 0 && state.running && state.aiming && !state.shipActive) {
+                state.aiming = false;
+                trajectoryInfoEl.style.display = 'none';
+                
+                if (state.ship) {
+                    const shipPos = state.ship.position;
+                    const dx = state.aimStart.x - mouseWorld.x;
+                    const dy = state.aimStart.y - mouseWorld.y;
+                    const power = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (power > 0.5) {
+                        const dir = new THREE.Vector2(dx, dy).normalize();
+                        const speed = Math.min(power * 3, 45);
+                        
+                        state.shipVelocity.set(dir.x * speed, dir.y * speed, 0);
+                        state.shipActive = true;
+                        state.launched = true;
+                        state.launchTime = 0;
+                        state.attempts++;
+                        state.levelAttempts++;
+                        state.launched = true;
+                        
+                        if (state.ship.userData.flame) {
+                            state.ship.userData.flame.scale.set(2, 2, 2);
+                        }
+                        
+                        updateHUD();
+                    }
+                }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyR' && state.running && !state.shipActive) {
+                resetShip();
+            }
+        });
+
+        // =====================
+        // UI ELEMENTS
+        // =====================
+        const scoreEl = document.getElementById('score');
+        const totalStarsEl = document.getElementById('totalStars');
+        const attemptsEl = document.getElementById('attempts');
+        const levelNumEl = document.getElementById('levelNum');
+        const levelGoalEl = document.getElementById('levelGoal');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverEl = document.getElementById('gameOver');
+        const levelCompleteEl = document.getElementById('levelComplete');
+        const finalScoreEl = document.getElementById('finalScore');
+        const startBtn = document.getElementById('startBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const restartGameBtn = document.getElementById('restartGameBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const completeAttemptsEl = document.getElementById('completeAttempts');
+        const completeScoreEl = document.getElementById('completeScore');
+        const starsEl = document.getElementById('stars');
+
+        function updateHUD() {
+            scoreEl.textContent = Math.floor(state.score);
+            totalStarsEl.textContent = '⭐ ' + state.totalStars;
+            attemptsEl.textContent = state.attempts + ' / ' + state.currentLevel.maxAttempts;
+            levelNumEl.textContent = state.level + ' / ' + state.maxLevel;
+        }
+
+        // =====================
+        // LEVEL MANAGEMENT
+        // =====================
+        function loadLevel(levelNum) {
+            state.planets.forEach(p => scene.remove(p));
+            state.planets.length = 0;
+            if (state.ship) scene.remove(state.ship);
+            if (state.target) scene.remove(state.target);
+            
+            state.level = levelNum;
+            state.currentLevel = LEVELS[levelNum - 1];
+            state.levelAttempts = 0;
+            state.shipActive = false;
+            state.aiming = false;
+            state.launched = false;
+            
+            state.currentLevel.planets.forEach(p => createPlanet(p));
+            
+            state.ship = createShip();
+            state.ship.position.copy(state.currentLevel.shipStart);
+            state.ship.rotation.set(0, 0, 0);
+            scene.add(state.ship);
+            
+            createTarget(state.currentLevel.target);
+            
+            state.shipVelocity.set(0, 0, 0);
+            
+            updateHUD();
+        }
+
+        function resetShip() {
+            if (state.shipActive) return;
+            state.shipVelocity.set(0, 0, 0);
+            state.ship.position.copy(state.currentLevel.shipStart);
+            state.ship.rotation.set(0, 0, 0);
+            state.aiming = false;
+            trajectoryInfoEl.style.display = 'none';
+        }
+
+        function levelComplete() {
+            state.running = false;
+            state.shipActive = false;
+            
+            const attemptsUsed = state.levelAttempts;
+            const maxAttempts = state.currentLevel.maxAttempts;
+            let stars = 1;
+            if (attemptsUsed <= Math.ceil(maxAttempts / 3)) stars = 3;
+            else if (attemptsUsed <= Math.ceil(maxAttempts * 2 / 3)) stars = 2;
+            
+            state.totalStars += stars;
+            
+            const levelBonus = stars * 500 + (maxAttempts - attemptsUsed) * 100;
+            state.score += levelBonus;
+            
+            starsEl.textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
+            completeAttemptsEl.textContent = attemptsUsed;
+            completeScoreEl.textContent = Math.floor(state.score);
+            
+            levelCompleteEl.style.display = 'flex';
+        }
+
+        function gameOver() {
+            state.running = false;
+            state.shipActive = false;
+            finalScoreEl.textContent = Math.floor(state.score);
+            gameOverEl.style.display = 'flex';
+        }
+
+        function startGame() {
+            state.running = true;
+            state.score = 0;
+            state.totalStars = 0;
+            state.attempts = 0;
+            state.level = 1;
+            
+            startScreen.style.display = 'none';
+            gameOverEl.style.display = 'none';
+            levelCompleteEl.style.display = 'none';
+            
+            loadLevel(1);
+        }
+
+        startBtn.addEventListener('click', startGame);
+        retryBtn.addEventListener('click', () => {
+            gameOverEl.style.display = 'none';
+            state.running = true;
+            state.levelAttempts = 0;
+            loadLevel(state.level);
+        });
+        restartGameBtn.addEventListener('click', () => {
+            gameOverEl.style.display = 'none';
+            startGame();
+        });
+        nextBtn.addEventListener('click', () => {
+            levelCompleteEl.style.display = 'none';
+            if (state.level >= state.maxLevel) {
+                startScreen.querySelector('h1').textContent = '🏆 YOU WIN!';
+                startScreen.querySelector('p').textContent = `All ${state.maxLevel} levels complete! Total stars: ${state.totalStars}`;
+                startScreen.style.display = 'flex';
+                startBtn.textContent = 'PLAY AGAIN';
+                state.running = false;
+                return;
+            }
+            state.running = true;
+            state.levelAttempts = 0;
+            loadLevel(state.level + 1);
+        });
+
+        // =====================
+        // PHYSICS
+        // =====================
+        function updatePhysics(delta) {
+            if (!state.shipActive) return;
+            
+            const shipPos = state.ship.position;
+            
+            for (const planet of state.planets) {
+                const diff = planet.position.clone().sub(shipPos);
+                const distSq = diff.lengthSq();
+                const dist = Math.sqrt(distSq);
+                
+                const safeDist = Math.max(dist, planet.userData.radius * 1.2);
+                
+                if (dist > 0.1) {
+                    const force = state.gravityConstant * planet.userData.mass / (safeDist * safeDist);
+                    const accel = diff.normalize().multiplyScalar(force);
+                    state.shipVelocity.addScaledVector(accel, delta);
+                }
+            }
+            
+            shipPos.addScaledVector(state.shipVelocity, delta);
+            
+            const vel2D = Math.atan2(state.shipVelocity.y, state.shipVelocity.x);
+            state.ship.rotation.z = vel2D - Math.PI / 2;
+            
+            for (const planet of state.planets) {
+                const dist = planet.position.distanceTo(shipPos);
+                if (dist < planet.userData.radius + 0.5) {
+                    createExplosion(shipPos.clone(), 30, 0xff4444, 5);
+                    state.cameraShake = 1.0;
+                    state.shipActive = false;
+                    
+                    if (state.levelAttempts >= state.currentLevel.maxAttempts) {
+                        gameOver();
+                    } else {
+                        resetShip();
+                    }
+                    return;
+                }
+            }
+            
+            if (state.target) {
+                const distToTarget = state.target.position.distanceTo(shipPos);
+                if (distToTarget < 2.5) {
+                    createExplosion(shipPos.clone(), 50, 0x00ff88, 6);
+                    createExplosion(shipPos.clone(), 30, 0xffffff, 4);
+                    state.shipActive = false;
+                    levelComplete();
+                    return;
+                }
+            }
+            
+            if (Math.abs(shipPos.x) > 80 || Math.abs(shipPos.y) > 60) {
+                state.shipActive = false;
+                if (state.levelAttempts >= state.currentLevel.maxAttempts) {
+                    gameOver();
+                } else {
+                    resetShip();
+                }
+                return;
+            }
+        }
+
+        // =====================
+        // PARTICLES
+        // =====================
+        const particles = [];
+        function createExplosion(pos, count, color, spread) {
+            for (let i = 0; i < count; i++) {
+                const geo = new THREE.SphereGeometry(0.1 + Math.random() * 0.15, 4);
+                const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 });
+                const p = new THREE.Mesh(geo, mat);
+                p.position.copy(pos);
+                
+                const dir = new THREE.Vector3(
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2
+                ).normalize();
+                
+                p.userData = {
+                    velocity: dir.multiplyScalar(spread + Math.random() * spread),
+                    life: 0.5 + Math.random() * 0.5,
+                    maxLife: 1.0
+                };
+                
+                scene.add(p);
+                particles.push(p);
+            }
+        }
+
+        // =====================
+        // TRAJECTORY PREVIEW
+        // =====================
+        function updateTrajectoryPreview() {
+            if (!state.aiming || !state.ship) {
+                aimLine.visible = false;
+                trajectoryLine.visible = false;
+                return;
+            }
+            
+            const shipPos = state.ship.position;
+            const dx = state.aimStart.x - mouseWorld.x;
+            const dy = state.aimStart.y - mouseWorld.y;
+            const power = Math.sqrt(dx*dx + dy*dy);
+            
+            if (power < 0.5) {
+                aimLine.visible = false;
+                trajectoryLine.visible = false;
+                return;
+            }
+            
+            const dir = new THREE.Vector2(dx, dy).normalize();
+            const speed = Math.min(power * 3, 45);
+            
+            const linePoints = [
+                shipPos.clone(),
+                new THREE.Vector3(shipPos.x + dir.x * 5, shipPos.y + dir.y * 5, 0)
+            ];
+            aimLine.geometry.dispose();
+            aimLine.geometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+            aimLine.visible = true;
+            
+            const simPos = shipPos.clone();
+            const simVel = new THREE.Vector3(dir.x * speed, dir.y * speed, 0);
+            const simDelta = 0.03;
+            const points = [];
+            
+            for (let step = 0; step < 80; step++) {
+                for (const planet of state.planets) {
+                    const diff = planet.position.clone().sub(simPos);
+                    const distSq = diff.lengthSq();
+                    const dist = Math.sqrt(distSq);
+                    const safeDist = Math.max(dist, planet.userData.radius * 1.2);
+                    if (dist > 0.1) {
+                        const force = state.gravityConstant * planet.userData.mass / (safeDist * safeDist);
+                        const accel = diff.normalize().multiplyScalar(force);
+                        simVel.addScaledVector(accel, simDelta);
+                    }
+                }
+                
+                simPos.addScaledVector(simVel, simDelta);
+                points.push(simPos.clone());
+                
+                let stop = false;
+                for (const planet of state.planets) {
+                    if (planet.position.distanceTo(simPos) < planet.userData.radius + 0.5) {
+                        stop = true;
+                        break;
+                    }
+                }
+                if (stop) break;
+                if (Math.abs(simPos.x) > 80 || Math.abs(simPos.y) > 60) break;
+            }
+            
+            const positions = new Float32Array(points.length * 3);
+            points.forEach((p, i) => {
+                positions[i*3] = p.x;
+                positions[i*3+1] = p.y;
+                positions[i*3+2] = p.z;
+            });
+            
+            trajectoryLine.geometry.dispose();
+            trajectoryLine.geometry = new THREE.BufferGeometry();
+            trajectoryLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            trajectoryLine.visible = true;
+            
+            powerValueEl.textContent = Math.floor(Math.min(power * 3 / 45 * 100, 100)) + '%';
+        }
+
+        // =====================
+        // MAIN LOOP
+        // =====================
+        const clock = new THREE.Clock();
+        const particleList = [];
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.05);
+            const time = performance.now() * 0.001;
+            
+            stars.rotation.y += 0.0001;
+            
+            updateTrajectoryPreview();
+            
+            state.planets.forEach(p => {
+                p.rotation.y += delta * 0.5;
+                if (p.userData.disk) p.userData.disk.rotation.z += delta * 2;
+                if (p.userData.innerRing) p.userData.innerRing.rotation.z -= delta * 1.5;
+            });
+            
+            if (state.target) {
+                state.target.rotation.y += delta * 2;
+                const pulse = 1 + Math.sin(time * 3) * 0.1;
+                state.target.userData.outerRing.scale.setScalar(pulse);
+                state.target.userData.midRing.rotation.z += delta * 3;
+                state.target.userData.light.intensity = 2 + Math.sin(time * 4) * 0.5;
+            }
+            
+            if (state.ship && state.ship.userData.flame) {
+                const flameScale = state.shipActive ? 1.5 + Math.random() * 0.5 : 1;
+                state.ship.userData.flame.scale.set(flameScale, flameScale, flameScale * (1 + Math.random() * 0.3));
+                state.ship.userData.flame.material.opacity = 0.7 + Math.random() * 0.3;
+            }
+            
+            if (state.ship && !state.shipActive && state.running) {
+                state.ship.position.y = state.currentLevel.shipStart.y + Math.sin(time * 2) * 0.1;
+            }
+            
+            if (state.running && state.shipActive) {
+                updatePhysics(delta);
+            }
+            
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.position.addScaledVector(p.userData.velocity, delta);
+                p.userData.velocity.multiplyScalar(0.96);
+                p.userData.life -= delta;
+                p.material.opacity = Math.max(0, p.userData.life / p.userData.maxLife);
+                p.scale.multiplyScalar(0.97);
+                
+                if (p.userData.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+            
+            if (state.cameraShake > 0) {
+                camera.position.x += (Math.random() - 0.5) * state.cameraShake;
+                camera.position.y += (Math.random() - 0.5) * state.cameraShake;
+                state.cameraShake *= 0.9;
+                camera.position.x = THREE.MathUtils.lerp(camera.position.x, 0, 0.1);
+                camera.position.y = THREE.MathUtils.lerp(camera.position.y, 15, 0.1);
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
