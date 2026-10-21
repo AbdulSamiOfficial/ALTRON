@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Spacecraft Model - Three.js</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: black; color: white; font-family: Arial, Helvetica, sans-serif; }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 16px;
+            border-radius: 20px;
+            pointer-events: none;
+            user-select: none;
+            font-size: 14px;
+            border: 1px solid #00aaff;
+            color: #aaddff;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">🚀 3D Spacecraft | Drag to rotate | Scroll to zoom</div>
+
+    <!-- Import Three.js and OrbitControls from CDN -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050510); // Deep space dark blue/black
+        
+        // Add some stars via a particle system
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsCount = 3000;
+        const starPositions = new Float32Array(starsCount * 3);
+        for (let i = 0; i < starsCount * 3; i += 3) {
+            // Random positions in a sphere of radius 500
+            const r = 400 + Math.random() * 100; // keep stars somewhat distant
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+            starPositions[i] = Math.sin(phi) * Math.cos(theta) * r;
+            starPositions[i+1] = Math.sin(phi) * Math.sin(theta) * r;
+            starPositions[i+2] = Math.cos(phi) * r;
+        }
+        starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true });
+        const stars = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(stars);
+
+        // --- Camera ---
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(8, 5, 12);
+        camera.lookAt(0, 0, 0);
+
+        // --- Renderer ---
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // not used heavily but nice
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // --- Controls ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.8;
+        controls.enableZoom = true;
+        controls.target.set(0, 0.5, 0);
+        controls.maxPolarAngle = Math.PI / 2;
+
+        // --- Lighting ---
+        // Ambient light to fill shadows
+        const ambientLight = new THREE.AmbientLight(0x404060);
+        scene.add(ambientLight);
+
+        // Main directional light (simulating a sun)
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        mainLight.position.set(10, 20, 10);
+        mainLight.castShadow = true;
+        mainLight.receiveShadow = true;
+        scene.add(mainLight);
+
+        // Fill light from opposite side (blueish)
+        const fillLight = new THREE.DirectionalLight(0x4466cc, 0.5);
+        fillLight.position.set(-10, 0, -10);
+        scene.add(fillLight);
+
+        // Back rim light (warm)
+        const rimLight = new THREE.DirectionalLight(0xffaa66, 0.4);
+        rimLight.position.set(-5, 5, -15);
+        scene.add(rimLight);
+
+        // Add a subtle blue point light near the engines
+        const engineLight = new THREE.PointLight(0x2266ff, 1, 20);
+        engineLight.position.set(0, 0.2, 3.5);
+        scene.add(engineLight);
+
+        // Additional lights for detail
+        const topLight = new THREE.PointLight(0xaaccff, 0.3);
+        topLight.position.set(2, 5, 2);
+        scene.add(topLight);
+
+        // --- Helper Grid (optional, commented out for cleaner look)
+        // const gridHelper = new THREE.GridHelper(20, 20, 0x3366aa, 0x224466);
+        // scene.add(gridHelper);
+
+        // --- Create the Spacecraft ---
+        const spacecraft = new THREE.Group();
+
+        // Materials
+        const hullMaterial = new THREE.MeshStandardMaterial({
+            color: 0xb0c0d0,
+            roughness: 0.4,
+            metalness: 0.8,
+            emissive: new THREE.Color(0x111122),
+            flatShading: false
+        });
+
+        const darkMetalMaterial = new THREE.MeshStandardMaterial({
+            color: 0x556677,
+            roughness: 0.6,
+            metalness: 0.9,
+        });
+
+        const accentMaterial = new THREE.MeshStandardMaterial({
+            color: 0xcc3333,
+            roughness: 0.3,
+            metalness: 0.7,
+            emissive: new THREE.Color(0x330000)
+        });
+
+        const windowMaterial = new THREE.MeshStandardMaterial({
+            color: 0x88ccff,
+            emissive: new THREE.Color(0x004466),
+            roughness: 0.1,
+            metalness: 0.1,
+            transparent: true,
+            opacity: 0.9
+        });
+
+        const engineGlowMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2266ff,
+            emissive: new THREE.Color(0x0044ff),
+            roughness: 0.2,
+            metalness: 0.1
+        });
+
+        // --- Main Fuselage (central body) ---
+        // Use a stretched sphere or a cylinder with hemispheres. 
+        // A capsule-like shape: use a cylinder with rounded ends via spheres.
+        const bodyLength = 4.0;
+        const bodyRadius = 1.0;
+        
+        // Central cylinder
+        const bodyCylinder = new THREE.Mesh(
+            new THREE.CylinderGeometry(bodyRadius, bodyRadius, bodyLength, 16),
+            hullMaterial
+        );
+        bodyCylinder.rotation.x = Math.PI / 2;
+        bodyCylinder.position.z = 0;
+        bodyCylinder.castShadow = true;
+        bodyCylinder.receiveShadow = true;
+        spacecraft.add(bodyCylinder);
+
+        // Front nose (sphere)
+        const noseSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(bodyRadius, 16, 16),
+            hullMaterial
+        );
+        noseSphere.position.z = bodyLength / 2;
+        noseSphere.castShadow = true;
+        noseSphere.receiveShadow = true;
+        spacecraft.add(noseSphere);
+
+        // Rear sphere
+        const rearSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(bodyRadius, 16, 16),
+            hullMaterial
+        );
+        rearSphere.position.z = -bodyLength / 2;
+        rearSphere.castShadow = true;
+        rearSphere.receiveShadow = true;
+        spacecraft.add(rearSphere);
+
+        // --- Cockpit (window) ---
+        const cockpit = new THREE.Mesh(
+            new THREE.SphereGeometry(0.55, 16, 8, 0, Math.PI * 2, 0, Math.PI/2),
+            windowMaterial
+        );
+        cockpit.position.set(0, 0.65, 1.1);
+        cockpit.rotation.x = -0.3;
+        cockpit.rotation.z = 0;
+        cockpit.scale.set(1.2, 0.6, 1.0);
+        spacecraft.add(cockpit);
+
+        // Cockpit frame (ring)
+        const cockpitRing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.65, 0.06, 8, 24),
+            darkMetalMaterial
+        );
+        cockpitRing.position.set(0, 0.65, 1.05);
+        cockpitRing.rotation.x = Math.PI / 2;
+        cockpitRing.rotation.z = 0.3;
+        cockpitRing.scale.set(1.2, 1.2, 0.8);
+        spacecraft.add(cockpitRing);
+
+        // --- Wings / Stabilizers ---
+        // Left wing
+        const leftWing = new THREE.Mesh(
+            new THREE.BoxGeometry(1.8, 0.15, 1.2),
+            hullMaterial
+        );
+        leftWing.position.set(-1.5, 0.1, -0.2);
+        leftWing.rotation.z = 0.1;
+        leftWing.rotation.y = 0.1;
+        leftWing.castShadow = true;
+        leftWing.receiveShadow = true;
+        spacecraft.add(leftWing);
+
+        // Right wing
+        const rightWing = new THREE.Mesh(
+            new THREE.BoxGeometry(1.8, 0.15, 1.2),
+            hullMaterial
+        );
+        rightWing.position.set(1.5, 0.1, -0.2);
+        rightWing.rotation.z = -0.1;
+        rightWing.rotation.y = -0.1;
+        rightWing.castShadow = true;
+        rightWing.receiveShadow = true;
+        spacecraft.add(rightWing);
+
+        // Wingtip accents (red)
+        const leftTip = new THREE.Mesh(
+            new THREE.BoxGeometry(0.2, 0.3, 0.8),
+            accentMaterial
+        );
+        leftTip.position.set(-2.4, 0.15, -0.2);
+        leftTip.rotation.z = 0.1;
+        leftTip.castShadow = true;
+        spacecraft.add(leftTip);
+
+        const rightTip = new THREE.Mesh(
+            new THREE.BoxGeometry(0.2, 0.3, 0.8),
+            accentMaterial
+        );
+        rightTip.position.set(2.4, 0.15, -0.2);
+        rightTip.rotation.z = -0.1;
+        rightTip.castShadow = true;
+        spacecraft.add(rightTip);
+
+        // --- Tail Fins (vertical stabilizers) ---
+        // Left tail fin
+        const leftFin = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 1.0, 1.4),
+            darkMetalMaterial
+        );
+        leftFin.position.set(-0.8, 0.9, -1.4);
+        leftFin.rotation.x = -0.2;
+        leftFin.rotation.z = 0.3;
+        leftFin.castShadow = true;
+        leftFin.receiveShadow = true;
+        spacecraft.add(leftFin);
+
+        // Right tail fin
+        const rightFin = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 1.0, 1.4),
+            darkMetalMaterial
+        );
+        rightFin.position.set(0.8, 0.9, -1.4);
+        rightFin.rotation.x = -0.2;
+        rightFin.rotation.z = -0.3;
+        rightFin.castShadow = true;
+        rightFin.receiveShadow = true;
+        spacecraft.add(rightFin);
+
+        // Center fin (small)
+        const centerFin = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 0.6, 1.0),
+            darkMetalMaterial
+        );
+        centerFin.position.set(0, 1.0, -1.6);
+        centerFin.rotation.x = -0.1;
+        centerFin.castShadow = true;
+        spacecraft.add(centerFin);
+
+        // --- Engine Section ---
+        // Engine housing (main)
+        const engineHousing = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.9, 0.8, 0.8, 8),
+            darkMetalMaterial
+        );
+        engineHousing.rotation.x = Math.PI / 2;
+        engineHousing.position.z = -2.3;
+        engineHousing.castShadow = true;
+        engineHousing.receiveShadow = true;
+        spacecraft.add(engineHousing);
+
+        // Engine nozzles (three small cylinders)
+        const nozzlePositions = [
+            [-0.5, 0, -2.8],
+            [0.5, 0, -2.8],
+            [0, 0, -2.9]
+        ];
+        nozzlePositions.forEach(pos => {
+            const nozzle = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.25, 0.35, 0.6, 8),
+                darkMetalMaterial
+            );
+            nozzle.rotation.x = Math.PI / 2;
+            nozzle.position.set(pos[0], pos[1], pos[2]);
+            nozzle.castShadow = true;
+            spacecraft.add(nozzle);
+
+            // Glow inside nozzle
+            const glow = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 6),
+                engineGlowMaterial
+            );
+            glow.position.set(pos[0], pos[1], pos[2] - 0.35);
+            spacecraft.add(glow);
+        });
+
+        // --- Additional details ---
+        // Antenna on top
+        const antennaBase = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.15, 0.2, 6),
+            darkMetalMaterial
+        );
+        antennaBase.position.set(0, 0.95, 1.5);
+        antennaBase.castShadow = true;
+        spacecraft.add(antennaBase);
+
+        const antennaRod = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6),
+            hullMaterial
+        );
+        antennaRod.position.set(0, 1.6, 1.5);
+        antennaRod.castShadow = true;
+        spacecraft.add(antennaRod);
+
+        const antennaBall = new THREE.Mesh(
+            new THREE.SphereGeometry(0.1, 6),
+            accentMaterial
+        );
+        antennaBall.position.set(0, 2.2, 1.5);
+        antennaBall.castShadow = true;
+        spacecraft.add(antennaBall);
+
+        // Side thrusters (small cylinders)
+        const thrusterGeo = new THREE.CylinderGeometry(0.2, 0.25, 0.5, 6);
+        const thrusterMat = darkMetalMaterial;
+        
+        const leftThruster = new THREE.Mesh(thrusterGeo, thrusterMat);
+        leftThruster.position.set(-1.1, 0.1, -1.8);
+        leftThruster.rotation.z = Math.PI / 2;
+        leftThruster.rotation.x = 0.2;
+        leftThruster.castShadow = true;
+        spacecraft.add(leftThruster);
+
+        const rightThruster = new THREE.Mesh(thrusterGeo, thrusterMat);
+        rightThruster.position.set(1.1, 0.1, -1.8);
+        rightThruster.rotation.z = -Math.PI / 2;
+        rightThruster.rotation.x = 0.2;
+        rightThruster.castShadow = true;
+        spacecraft.add(rightThruster);
+
+        // Small greebles (random boxes) to add detail
+        for (let i = 0; i < 8; i++) {
+            const greeble = new THREE.Mesh(
+                new THREE.BoxGeometry(0.15, 0.15, 0.15),
+                i % 2 === 0 ? accentMaterial : darkMetalMaterial
+            );
+            greeble.position.set(
+                (Math.random() - 0.5) * 1.8,
+                (Math.random() - 0.5) * 1.0 + 0.3,
+                (Math.random() - 0.5) * 3.0
+            );
+            greeble.rotation.set(Math.random(), Math.random(), Math.random());
+            greeble.castShadow = true;
+            spacecraft.add(greeble);
+        }
+
+        // Position the whole spacecraft slightly above the origin to look nicer
+        spacecraft.position.y = 0.2;
+        scene.add(spacecraft);
+
+        // --- Add a faint glow effect behind engines (using a simple sprite or point light? Already added point light, but also add a tiny lens flare? skip for simplicity) ---
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Auto-rotate via OrbitControls
+            controls.update();
+
+            // Subtle engine glow pulsation (optional)
+            const time = Date.now() * 0.002;
+            engineLight.intensity = 0.8 + Math.sin(time) * 0.4;
+
+            // Rotate stars slowly for a sense of motion
+            stars.rotation.y += 0.0001;
+            stars.rotation.x += 0.00005;
+
+            // Slight bobbing of the spacecraft to feel alive
+            spacecraft.position.y = 0.2 + Math.sin(time * 2) * 0.03;
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // --- Handle Window Resize ---
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
