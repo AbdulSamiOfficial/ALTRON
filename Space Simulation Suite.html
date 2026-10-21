@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SPACEMIND Simulations</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    color: #0ff;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  #nav {
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    background: #0a0a1a;
+    border-bottom: 1px solid #0ff3;
+  }
+  #nav button {
+    background: #001a1a;
+    color: #0ff;
+    border: 1px solid #0ff5;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+  #nav button:hover { background: #0ff2; }
+  #nav button.active { background: #0ff3; border-color: #0ff; }
+  canvas { flex: 1; display: block; }
+  #hud {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    font-size: 12px;
+    color: #0ff8;
+    pointer-events: none;
+    line-height: 1.5;
+  }
+  #controls {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  #controls input[type=range] { width: 120px; }
+  #controls label { font-size: 11px; color: #0ff8; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="nav">
+    <button data-sim="gravity" class="active">🌌 N-Body Gravity</button>
+    <button data-sim="solar">☀️ Solar System</button>
+    <button data-sim="blackhole">🕳️ Black Hole</button>
+    <button data-sim="galaxy">🌀 Galaxy Formation</button>
+    <button data-sim="pulsar">✨ Pulsar</button>
+    <button data-sim="wormhole">🌐 Wormhole</button>
+  </div>
+  <canvas id="canvas"></canvas>
+</div>
+<div id="hud"></div>
+<div id="controls">
+  <label>Speed <input id="speed" type="range" min="0.1" max="3" step="0.1" value="1"></label>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const hud = document.getElementById('hud');
+const speedSlider = document.getElementById('speed');
+
+let W, H, cx, cy;
+function resize() {
+  W = canvas.width = canvas.clientWidth;
+  H = canvas.height = canvas.clientHeight;
+  cx = W / 2; cy = H / 2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- Utilities ----------
+const rand = (a, b) => a + Math.random() * (b - a);
+const TAU = Math.PI * 2;
+
+// ---------- Simulation Framework ----------
+let currentSim = null;
+let mouse = { x: 0, y: 0, down: false };
+
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - r.left;
+  mouse.y = e.clientY - r.top;
+});
+canvas.addEventListener('mousedown', () => mouse.down = true);
+canvas.addEventListener('mouseup', () => mouse.down = false);
+
+document.querySelectorAll('#nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    startSim(btn.dataset.sim);
+  });
+});
+
+function startSim(name) {
+  ctx.clearRect(0, 0, W, H);
+  const sims = { gravity, solar, blackhole, galaxy, pulsar, wormhole };
+  currentSim = sims[name]();
+}
+
+// =====================================================================
+// 1. N-BODY GRAVITY
+// =====================================================================
+function gravity() {
+  const bodies = [];
+  const N = 60;
+  const G = 0.4;
+  for (let i = 0; i < N; i++) {
+    const angle = rand(0, TAU);
+    const r = rand(80, Math.min(cx, cy) - 30);
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    // orbital velocity perpendicular
+    const v = Math.sqrt(G * (N * 12) / r) * rand(0.7, 1.1);
+    bodies.push({
+      x, y,
+      vx: -Math.sin(angle) * v + rand(-0.2, 0.2),
+      vy: Math.cos(angle) * v + rand(-0.2, 0.2),
+      mass: rand(2, 6),
+      color: `hsl(${rand(180, 280)}, 90%, ${rand(55, 80)}%)`,
+      trail: []
+    });
+  }
+
+  return {
+    step(speed) {
+      for (const b of bodies) {
+        let ax = 0, ay = 0;
+        for (const o of bodies) {
+          if (o === b) continue;
+          const dx = o.x - b.x, dy = o.y - b.y;
+          const d2 = dx * dx + dy * dy + 25;
+          const f = G * o.mass / (d2 * Math.sqrt(d2));
+          ax += dx * f; ay += dy * f;
+        }
+        b.vx += ax * speed;
+        b.vy += ay * speed;
+        b.x += b.vx * speed;
+        b.y += b.vy * speed;
+
+        // soft boundary bounce
+        if (b.x < 0 || b.x > W) b.vx *= -0.9;
+        if (b.y < 0 || b.y > H) b.vy *= -0.9;
+        b.x = Math.max(0, Math.min(W, b.x));
+        b.y = Math.max(0, Math.min(H, b.y));
+
+        b.trail.push({ x: b.x, y: b.y });
+        if (b.trail.length > 12) b.trail.shift();
+      }
+    },
+    draw() {
+      ctx.fillStyle = 'rgba(0,0,8,0.25)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+      for (const b of bodies) {
+        if (b.trail.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(b.trail[0].x, b.trail[0].y);
+          for (const p of b.trail) ctx.lineTo(p.x, p.y);
+          ctx.strokeStyle = b.color.replace(')', ',0.4)').replace('hsl', 'hsla');
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+        const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.mass * 3);
+        grad.addColorStop(0, b.color);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.mass * 3, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.mass * 0.5, 0, TAU);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      hud.textContent = `N-Body | Bodies: ${N} | Gravitational interaction`;
+    }
+  };
+}
+
+// =====================================================================
+// 2. SOLAR SYSTEM
+// =====================================================================
+function solar() {
+  const planets = [
+    { name: 'Mercury', r: 45,  size: 2.5, color: '#bbb',   speed: 4.15, angle: rand(0, TAU) },
+    { name: 'Venus',   r: 65,  size: 4,   color: '#e6b96d', speed: 1.62, angle: rand(0, TAU) },
+    { name: 'Earth',   r: 90,  size: 4.5, color: '#4a90d9', speed: 1.0,  angle: rand(0, TAU) },
+    { name: 'Mars',    r: 115, size: 3.5, color: '#c1440e', speed: 0.53, angle: rand(0, TAU) },
+    { name: 'Jupiter', r: 165, size: 9,   color: '#d8a86a', speed: 0.084,angle: rand(0, TAU) },
+    { name: 'Saturn',  r: 215, size: 8,   color: '#e3d9a5', speed: 0.034,angle: rand(0, TAU), ring: true },
+    { name: 'Uranus',  r: 260, size: 6,   color: '#a1e3e3', speed: 0.012,angle: rand(0, TAU) },
+    { name: 'Neptune', r: 300, size: 6,   color: '#4166f5', speed: 0.006,angle: rand(0, TAU) }
+  ];
+  const stars = Array.from({length: 200}, () => ({ x: rand(0, W), y: rand(0, H), s: rand(0.3, 1.2) }));
+  let t = 0;
+
+  return {
+    step(speed) { t += 0.01 * speed; },
+    draw() {
+      ctx.fillStyle = 'rgba(0,0,10,0.4)';
+      ctx.fillRect(0, 0, W, H);
+
+      // stars
+      ctx.fillStyle = '#fff';
+      for (const s of stars) {
+        ctx.globalAlpha = 0.3 + Math.random() * 0.7;
+        ctx.fillRect(s.x, s.y, s.s, s.s);
+      }
+      ctx.globalAlpha = 1;
+
+      // sun glow
+      const sunGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 60);
+      sunGrad.addColorStop(0, '#fff8d0');
+      sunGrad.addColorStop(0.3, '#ffcc33');
+      sunGrad.addColorStop(0.7, '#ff6600aa');
+      sunGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = sunGrad;
+      ctx.beginPath(); ctx.arc(cx, cy, 60, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#fff8d0';
+      ctx.beginPath(); ctx.arc(cx, cy, 14, 0, TAU); ctx.fill();
+
+      // orbits
+      ctx.strokeStyle = '#0ff2';
+      ctx.lineWidth = 0.6;
+      for (const p of planets) {
+        ctx.beginPath(); ctx.arc(cx, cy, p.r, 0, TAU); ctx.stroke();
+      }
+
+      // planets
+      for (const p of planets) {
+        const a = p.angle + t * p.speed;
+        const x = cx + Math.cos(a) * p.r;
+        const y = cy + Math.sin(a) * p.r;
+
+        // glow
+        const g = ctx.createRadialGradient(x, y, 0, x, y, p.size * 3);
+        g.addColorStop(0, p.color);
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, p.size * 3, 0, TAU); ctx.fill();
+
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(x, y, p.size, 0, TAU); ctx.fill();
+
+        if (p.ring) {
+          ctx.strokeStyle = '#e3d9a5aa';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(x, y, p.size * 2.2, p.size * 0.7, a, 0, TAU);
+          ctx.stroke();
+        }
+      }
+      hud.textContent = 'Solar System | 8 planets orbiting Sol';
+    }
+  };
+}
+
+// =====================================================================
+// 3. BLACK HOLE
+// =====================================================================
+function blackhole() {
+  const particles = [];
+  const N = 800;
+  for (let i = 0; i < N; i++) {
+    const r = rand(80, 500);
+    const a = rand(0, TAU);
+    particles.push({
+      r, a,
+      vr: -rand(0.05, 0.4),
+      va: rand(0.01, 0.03) * (Math.random() < 0.9 ? 1 : -1),
+      hue: rand(10, 50),
+      life: 1
+    });
+  }
+  let t = 0;
+
+  return {
+    step(speed) {
+      t += 0.02 * speed;
+      for (const p of particles) {
+        p.r += p.vr * speed;
+        p.a += (p.va * 200 / Math.max(p.r, 40)) * speed;
+        if (p.r < 35) {
+          p.r = rand(300, 550);
+          p.a = rand(0, TAU);
+          p.vr = -rand(0.05, 0.4);
+          p.hue = rand(10, 50);
+        }
+      }
+    },
+    draw() {
+      ctx.fillStyle = 'rgba(0,0,5,0.35)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+
+      // accretion particles
+      for (const p of particles) {
+        const x = cx + Math.cos(p.a) * p.r;
+        const y = cy + Math.sin(p.a) * p.r * 0.35; // disk perspective
+        const alpha = Math.min(1, (550 - p.r) / 400);
+        const size = 1 + (1 - p.r / 550) * 2;
+        ctx.fillStyle = `hsla(${p.hue}, 100%, ${55 + p.r / 20}%, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, TAU);
+        ctx.fill();
+      }
+
+      // photon ring
+      const ring = ctx.createRadialGradient(cx, cy, 30, cx, cy, 90);
+      ring.addColorStop(0, 'rgba(255,200,100,0)');
+      ring.addColorStop(0.5, 'rgba(255,150,50,0.4)');
+      ring.addColorStop(0.75, 'rgba(255,100,30,0.7)');
+      ring.addColorStop(1, 'rgba(255,50,10,0)');
+      ctx.fillStyle = ring;
+      ctx.beginPath(); ctx.arc(cx, cy, 90, 0, TAU); ctx.fill();
+
+      ctx.globalCompositeOperation = 'source-over';
+      // event horizon
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(cx, cy, 30, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#ff8c00';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, 31, 0, TAU); ctx.stroke();
+
+      hud.textContent = 'Black Hole | Accretion disk + photon ring + event horizon';
+    }
+  };
+}
+
+// =====================================================================
+// 4. GALAXY FORMATION
+// =====================================================================
+function galaxy() {
+  const N = 1200;
+  const stars = [];
+  const arms = 4;
+  for (let i = 0; i < N; i++) {
+    const arm = i % arms;
+    const r = Math.pow(Math.random(), 0.6) * 300 + 20;
+    const spin = r * 0.018;
+    const spread = (Math.random() - 0.5) * (0.5 + r / 400);
+    const a = (arm / arms) * TAU + spin + spread;
+    stars.push({
+      r, a,
+      size: rand(0.4, 2.2),
+      hue: r < 100 ? rand(40, 60) : rand(180, 260),
+      twinkle: Math.random() * TAU
+    });
+  }
+  let t = 0;
+
+  return {
+    step(speed) { t += 0.005 * speed; },
+    draw() {
+      ctx.fillStyle = 'rgba(0,0,8,0.25)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+
+      // core glow
+      const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, 140);
+      core.addColorStop(0, 'rgba(255,240,200,0.9)');
+      core.addColorStop(0.15, 'rgba(255,200,120,0.5)');
+      core.addColorStop(0.4, 'rgba(200,120,255,0.2)');
+      core.addColorStop(1, 'transparent');
+      ctx.fillStyle = core;
+      ctx.beginPath(); ctx.arc(cx, cy, 140, 0, TAU); ctx.fill();
+
+      for (const s of stars) {
+        const a = s.a + t * (1 - s.r / 400) * 2;
+        const x = cx + Math.cos(a) * s.r;
+        const y = cy + Math.sin(a) * s.r * 0.55; // perspective
+        const tw = 0.6 + 0.4 * Math.sin(s.twinkle + t * 30);
+        ctx.fillStyle = `hsla(${s.hue}, 90%, 75%, ${tw})`;
+        ctx.beginPath();
+        ctx.arc(x, y, s.size, 0, TAU);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      hud.textContent = `Galaxy Formation | ${N} stars | 4 spiral arms | rotating differential`;
+    }
+  };
+}
+
+// =====================================================================
+// 5. PULSAR
+// =====================================================================
+function pulsar() {
+  const beamAngle = 0;
+  let t = 0;
+  const particles = [];
+
+  return {
+    step(speed) {
+      t += 0.03 * speed;
+      // emit particles along beams
+      const angle = t * 2;
+      for (let i = 0; i < 3; i++) {
+        particles.push({
+          x: cx, y: cy,
+          vx: Math.cos(angle) * rand(3, 6),
+          vy: Math.sin(angle) * rand(3, 6),
+          life: 1,
+          hue: rand(180, 210)
+        });
+        particles.push({
+          x: cx, y: cy,
+          vx: -Math.cos(angle) * rand(3, 6),
+          vy: -Math.sin(angle) * rand(3, 6),
+          life: 1,
+          hue: rand(180, 210)
+        });
+      }
+      for (const p of particles) {
+        p.x += p.vx * speed; p.y += p.vy * speed;
+        p.life -= 0.008 * speed;
+      }
+      for (let i = particles.length - 1; i >= 0; i--)
+        if (particles[i].life <= 0) particles.splice(i, 1);
+      if (particles.length > 800) particles.splice(0, particles.length - 800);
+    },
+    draw() {
+      ctx.fillStyle = 'rgba(0,0,10,0.2)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+
+      // particles
+      for (const p of particles) {
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 70%, ${p.life})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 1.5, 0, TAU); ctx.fill();
+      }
+
+      // rotating beams
+      const angle = t * 2;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      const beamGrad = ctx.createLinearGradient(0, 0, 0, -400);
+      beamGrad.addColorStop(0, 'rgba(150,220,255,0.9)');
+      beamGrad.addColorStop(1, 'rgba(80,150,255,0)');
+      ctx.fillStyle = beamGrad;
+      ctx.beginPath();
+      ctx.moveTo(-8, 0); ctx.lineTo(0, -400); ctx.lineTo(8, 0);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-8, 0); ctx.lineTo(0, 400); ctx.lineTo(8, 0);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+
+      // neutron star
+      const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40);
+      core.addColorStop(0, '#fff');
+      core.addColorStop(0.3, '#aaddff');
+      core.addColorStop(1, 'transparent');
+      ctx.fillStyle = core;
+      ctx.beginPath(); ctx.arc(cx, cy, 40, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(cx, cy, 6, 0, TAU); ctx.fill();
+
+      ctx.globalCompositeOperation = 'source-over';
+      hud.textContent = 'Pulsar | Rotating neutron star | Relativistic jets';
+    }
+  };
+}
+
+// =====================================================================
+// 6. WORMHOLE
+// =====================================================================
+function wormhole() {
+  const stars = Array.from({length: 400}, () => ({
+    x: rand(-1, 1), y: rand(-1, 1), z: rand(0.1, 1),
+    hue: rand(180, 280)
+  }));
+  let t = 0;
+
+  return {
+    step(speed) { t += 0.015 * speed; },
+    draw() {
+      ctx.fillStyle = 'rgba(0,0,8,0.4)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+
+      // tunnel effect
+      const depth = 30;
+      for (let i = 0; i < depth; i++) {
+        const phase = (i / depth + t) % 1;
+        const r = 20 + phase * Math.min(cx, cy) * 1.2;
+        const alpha = Math.sin(phase * Math.PI) * 0.5;
+        const hue = (i * 12 + t * 100) % 360;
+        ctx.strokeStyle = `hsla(${hue}, 90%, 60%, ${alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, TAU);
+        ctx.stroke();
+      }
+
+      // stars streaking toward viewer
+      for (const s of stars) {
+        s.z -= 0.008;
+        if (s.z <= 0.05) {
+          s.z = 1;
+          s.x = rand(-1, 1);
+          s.y = rand(-1, 1);
+        }
+        const scale = 1 / s.z;
+        const x = cx + s.x * cx * 0.9 * scale * 0.15;
+        const y = cy + s.y * cy * 0.9 * scale * 0.15;
+        const prevScale = 1 / (s.z + 0.02);
+        const px = cx + s.x * cx * 0.9 * prevScale * 0.15;
+        const py = cy + s.y * cy * 0.9 * prevScale * 0.15;
+
+        const alpha = Math.min(1, (1 - s.z) * 2);
+        ctx.strokeStyle = `hsla(${s.hue}, 100%, 80%, ${alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+
+      // center singularity glow
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 60);
+      g.addColorStop(0, 'rgba(255,255,255,0.95)');
+      g.addColorStop(0.4, 'rgba(150,100,255,0.6)');
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, 60, 0, TAU); ctx.fill();
+
+      ctx.globalCompositeOperation = 'source-over';
+      hud.textContent = 'Wormhole | Gravitational lensing | Hyperspace tunnel';
+    }
+  };
+}
+
+// ---------- Main Loop ----------
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(50, now - last);
+  last = now;
+  const speed = parseFloat(speedSlider.value);
+
+  if (currentSim) {
+    currentSim.step(speed);
+    currentSim.draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+// Start
+startSim('gravity');
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
